@@ -1,22 +1,21 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { Signer } from "ethers";
 
 describe("oMNEE Protocol", function () {
-  let mockMNEE: any;
-  let omneeHub: any;
-  let omMNEEToken: any;
-  let settlement: any;
-  let rwaTokenization: any;
-  let crossChainBridge: any;
-  let owner: Signer;
-  let user1: Signer;
-  let user2: Signer;
-  let operator: Signer;
-  let ownerAddr: string;
-  let user1Addr: string;
-  let user2Addr: string;
-  let operatorAddr: string;
+  let mockMNEE;
+  let omneeHub;
+  let omMNEEToken;
+  let settlement;
+  let rwaTokenization;
+  let crossChainBridge;
+  let owner;
+  let user1;
+  let user2;
+  let operator;
+  let ownerAddr;
+  let user1Addr;
+  let user2Addr;
+  let operatorAddr;
 
   beforeEach(async function () {
     [owner, user1, user2, operator] = await ethers.getSigners();
@@ -79,7 +78,7 @@ describe("oMNEE Protocol", function () {
       const receipt = await tx.wait();
       
       // Find the lock ID from events
-      const event = receipt?.logs.find((log: any) => {
+      const event = receipt?.logs.find((log) => {
         try {
           const parsed = omneeHub.interface.parseLog(log);
           return parsed?.name === "MNEELocked";
@@ -141,7 +140,7 @@ describe("oMNEE Protocol", function () {
       const receipt = await initTx.wait();
       
       // Find settlement ID from events
-      const event = receipt?.logs.find((log: any) => {
+      const event = receipt?.logs.find((log) => {
         try {
           const parsed = settlement.interface.parseLog(log);
           return parsed?.name === "SettlementInitiated";
@@ -220,7 +219,7 @@ describe("oMNEE Protocol", function () {
       );
       
       const receipt = await issueTx.wait();
-      const event = receipt?.logs.find((log: any) => {
+      const event = receipt?.logs.find((log) => {
         try {
           const parsed = rwaTokenization.interface.parseLog(log);
           return parsed?.name === "RWATokenIssued";
@@ -287,7 +286,7 @@ describe("oMNEE Protocol", function () {
       );
       
       const receipt = await initTx.wait();
-      const event = receipt?.logs.find((log: any) => {
+      const event = receipt?.logs.find((log) => {
         try {
           const parsed = crossChainBridge.interface.parseLog(log);
           return parsed?.name === "BridgeInitiated";

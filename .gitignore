@@ -15,6 +15,9 @@ typechain-types/
 # Hardhat
 .openzeppelin/
 
+# Deployment info
+deployment-*.json
+
 # Environment variables
 .env
 .env.local
