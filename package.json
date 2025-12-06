@@ -1,16 +1,35 @@
 {
   "name": "omnee-protocol",
   "version": "1.0.0",
-  "description": "OMNEE: The Omnichain Settlement Layer for Agentic Economies.",
+  "description": "oMNEE Protocol: Universal Ledger for AI Agents & RWA Tokenization - MNEE Hackathon Entry",
   "main": "index.js",
   "scripts": {
     "compile": "node scripts/compile.js",
     "test": "node scripts/compile.js && npx hardhat test",
     "deploy": "npx hardhat run scripts/deploy.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "mnee",
+    "stablecoin",
+    "defi",
+    "ai-agents",
+    "rwa",
+    "tokenization",
+    "cross-chain",
+    "ethereum",
+    "hackathon",
+    "programmable-money"
+  ],
+  "author": "krewdev",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/krewdev/oMNEE-protocol.git"
+  },
+  "bugs": {
+    "url": "https://github.com/krewdev/oMNEE-protocol/issues"
+  },
+  "homepage": "https://github.com/krewdev/oMNEE-protocol#readme",
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",
     "@nomicfoundation/hardhat-ethers": "^3.1.2",
