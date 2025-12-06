@@ -16,7 +16,7 @@ contract OmneeHub is Ownable {
     IERC20 public immutable officialMneeToken;
     OmneeToken public immutable omneeToken;
     
-    // The specific MNEE contract address for the Hackathon
+    // The specific MNEE contract address for the Hackathon (checksummed)
     address constant MNEE_ADDRESS = 0x8ccedbAe4916b79da7F3F612EfB2EB93A2bFD6cF;
 
     // 2. State
@@ -95,13 +95,13 @@ contract OmneeHub is Ownable {
      * The Agent Listener (Node.js) sees this event and executes the action on the other side.
      */
     function teleportFunds(uint256 amount, string calldata targetChain, string calldata targetAddress) external onlyAgent {
-         require(omneeToken.balanceOf(msg.sender) >= amount, "OMNEE: Insufficient omMNEE");
+        require(omneeToken.balanceOf(msg.sender) >= amount, "OMNEE: Insufficient omMNEE");
 
-         // 1. Burn locally
-         omneeToken.burn(msg.sender, amount);
+        // 1. Burn locally
+        omneeToken.burn(msg.sender, amount);
 
-         // 2. Emit the instruction for the AI Overseer to execute elsewhere
-         // Note: The MNEE remains locked in THIS contract, backing the value on the new chain.
-         emit RedemptionRequested(msg.sender, amount, string(abi.encodePacked("Teleport to ", targetChain, ": ", targetAddress)));
+        // 2. Emit the instruction for the AI Overseer to execute elsewhere
+        // Note: The MNEE remains locked in THIS contract, backing the value on the new chain.
+        emit RedemptionRequested(msg.sender, amount, string(abi.encodePacked("Teleport to ", targetChain, ": ", targetAddress)));
     }
 }
