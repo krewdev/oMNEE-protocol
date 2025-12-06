@@ -151,6 +151,9 @@ contract RWATokenization is AccessControl, Pausable, ReentrancyGuard {
 
     /**
      * @notice Transfer RWA token ownership
+     * @dev Note: This function does not remove the tokenId from the previous owner's 
+     * ownerTokens array for gas efficiency. Use getRWAToken() to verify current ownership.
+     * The ownerTokens array should be considered a historical list of tokens ever owned.
      * @param tokenId ID of the RWA token
      * @param newOwner Address of the new owner
      */
@@ -191,7 +194,9 @@ contract RWATokenization is AccessControl, Pausable, ReentrancyGuard {
     }
 
     /**
-     * @notice Get all RWA tokens owned by an address
+     * @notice Get all RWA tokens associated with an address
+     * @dev Returns all tokens ever issued to or transferred to this address.
+     * To verify current ownership, check each token using getRWAToken().
      * @param owner Address of the owner
      * @return Array of token IDs
      */

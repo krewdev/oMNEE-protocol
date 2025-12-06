@@ -15,7 +15,8 @@ contract MockMNEE is ERC20 {
     }
 
     /**
-     * @notice Mint new tokens (for testing)
+     * @notice Mint new tokens (for testing only - DO NOT USE IN PRODUCTION)
+     * @dev This function has no access control and is only for testing purposes
      * @param to Address to receive tokens
      * @param amount Amount to mint
      */
