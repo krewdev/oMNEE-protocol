@@ -12,6 +12,14 @@ export default defineConfig({
       },
     },
   },
+  networks: {
+    quipo: {
+      url: "https://public-node.testnet.rsk.co", // RSK Testnet - Chain ID 33
+      chainId: 33,
+      type: "http",
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+    },
+  },
   paths: {
     sources: "./contracts",
     tests: "./test",

@@ -6,11 +6,11 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./OmneeToken.sol";
 
 /**
- * @title OmneeHub
+ * @title QuipoHub
  * @dev The "Central Bank" for AI Agents. 
  * Manages MNEE collateral and authorizes Agent Vectors.
  */
-contract OmneeHub is Ownable {
+contract QuipoHub is Ownable {
 
     // 1. Configuration
     IERC20 public immutable officialMneeToken;
@@ -38,7 +38,7 @@ contract OmneeHub is Ownable {
     // --- MODIFIERS ---
     
     modifier onlyAgent() {
-        require(authorizedAgents[msg.sender] || msg.sender == owner(), "OMNEE: Caller is not an authorized Agent Vector");
+        require(authorizedAgents[msg.sender] || msg.sender == owner(), "QUIPO: Caller is not an authorized Agent Vector");
         _;
     }
 
@@ -58,11 +58,11 @@ contract OmneeHub is Ownable {
      * @param metadata Purpose of deposit (e.g., "RWA Collateral for Real Estate").
      */
     function depositAndMint(uint256 amount, string calldata metadata) external onlyAgent {
-        require(amount > 0, "OMNEE: Amount must be > 0");
+        require(amount > 0, "QUIPO: Amount must be > 0");
 
         // 1. Pull MNEE from the agent to the Vault
         bool success = officialMneeToken.transferFrom(msg.sender, address(this), amount);
-        require(success, "OMNEE: MNEE transfer failed");
+        require(success, "QUIPO: MNEE transfer failed");
 
         // 2. Mint omMNEE to the agent
         omneeToken.mint(msg.sender, amount);
@@ -77,14 +77,14 @@ contract OmneeHub is Ownable {
      * @param amount The amount of omMNEE to burn.
      */
     function redeem(uint256 amount) external onlyAgent {
-        require(omneeToken.balanceOf(msg.sender) >= amount, "OMNEE: Insufficient omMNEE balance");
+        require(omneeToken.balanceOf(msg.sender) >= amount, "QUIPO: Insufficient omMNEE balance");
 
         // 1. Burn the synthetic token
         omneeToken.burn(msg.sender, amount);
 
         // 2. Return the collateral (Real MNEE)
         bool success = officialMneeToken.transfer(msg.sender, amount);
-        require(success, "OMNEE: MNEE return failed");
+        require(success, "QUIPO: MNEE return failed");
 
         emit RedemptionRequested(msg.sender, amount, "Ethereum Mainnet Redemption");
     }
@@ -95,7 +95,7 @@ contract OmneeHub is Ownable {
      * The Agent Listener (Node.js) sees this event and executes the action on the other side.
      */
     function teleportFunds(uint256 amount, string calldata targetChain, string calldata targetAddress) external onlyAgent {
-        require(omneeToken.balanceOf(msg.sender) >= amount, "OMNEE: Insufficient omMNEE");
+        require(omneeToken.balanceOf(msg.sender) >= amount, "QUIPO: Insufficient omMNEE");
 
         // 1. Burn locally
         omneeToken.burn(msg.sender, amount);
