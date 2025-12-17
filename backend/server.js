@@ -15,11 +15,16 @@ const PORT = process.env.PORT || 8000;
 const FRIENDLY_AGENT_KEY = process.env.AGENT_KEY || "my_secret_agent_pass_123";
 const SPEED_TRAP_THRESHOLD = 0.5; // seconds between requests (for bots)
 const AGENT_KEY_THRESHOLD = 0.2; // seconds for authenticated agents
+const MAX_MAZE_LEVELS = 50; // Hard cap on maze levels per IP
+const MAX_REQUESTS_PER_SECOND = 10; // Max requests per second per IP for maze
+const MAZE_RATE_LIMIT_WINDOW = 1; // 1 second window
 
 // --- IN-MEMORY DATABASE (Replace with Redis for Production) ---
 const activeTraps = new Map(); // { "ip": { level: number, lastSeen: timestamp } }
 let totalTrappedCount = 0;
 const requestLog = new Map(); // { "ip": timestamp }
+const mazeVisits = new Map(); // { "ip": { count: number, firstVisit: timestamp, lastVisit: timestamp } }
+const mazeRequestRate = new Map(); // { "ip": { requests: [timestamp, ...], lastCleanup: timestamp } }
 
 // --- MIDDLEWARE ---
 app.use(cors({
@@ -207,10 +212,102 @@ app.get('/stats/trapped', (req, res) => {
   });
 });
 
+// --- HELPER: Clean up old rate limit entries ---
+function cleanMazeRateLimit(ip) {
+  const now = Date.now() / 1000;
+  const rateData = mazeRequestRate.get(ip);
+  
+  if (!rateData) return;
+  
+  // Remove requests older than the window
+  rateData.requests = rateData.requests.filter(timestamp => now - timestamp < MAZE_RATE_LIMIT_WINDOW);
+  
+  // Clean up if no recent requests
+  if (rateData.requests.length === 0 && now - rateData.lastCleanup > 60) {
+    mazeRequestRate.delete(ip);
+  } else {
+    rateData.lastCleanup = now;
+    mazeRequestRate.set(ip, rateData);
+  }
+}
+
 // --- ENDPOINT 2: THE SPIDER TRAP (The Maze) ---
 app.get('/maze/:level', async (req, res) => {
   const level = parseInt(req.params.level) || 1;
   const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
+  const now = Date.now() / 1000;
+  
+  // === RATE LIMITING: Request Rate Check ===
+  if (!mazeRequestRate.has(clientIp)) {
+    mazeRequestRate.set(clientIp, { requests: [now], lastCleanup: now });
+  } else {
+    const rateData = mazeRequestRate.get(clientIp);
+    cleanMazeRateLimit(clientIp);
+    
+    // Check current request rate
+    const recentRequests = rateData.requests.filter(timestamp => now - timestamp < MAZE_RATE_LIMIT_WINDOW);
+    if (recentRequests.length >= MAX_REQUESTS_PER_SECOND) {
+      // Too many requests - drop connection immediately
+      console.log(`🚫 Rate limit exceeded for IP ${clientIp}: ${recentRequests.length} requests in ${MAZE_RATE_LIMIT_WINDOW}s`);
+      res.status(429).send(`
+        <html>
+          <head><title>Rate Limit Exceeded</title></head>
+          <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+            <h1>429 - Too Many Requests</h1>
+            <p>You are making requests too quickly. Please slow down.</p>
+            <p style="color: #666; font-size: 0.9em;">Connection dropped to protect server resources.</p>
+          </body>
+        </html>
+      `);
+      return;
+    }
+    
+    // Add current request
+    rateData.requests.push(now);
+    mazeRequestRate.set(clientIp, rateData);
+  }
+  
+  // === RATE LIMITING: Maze Level Cap ===
+  if (!mazeVisits.has(clientIp)) {
+    mazeVisits.set(clientIp, { count: 1, firstVisit: now, lastVisit: now, maxLevel: level });
+  } else {
+    const visitData = mazeVisits.get(clientIp);
+    visitData.count++;
+    visitData.lastVisit = now;
+    visitData.maxLevel = Math.max(visitData.maxLevel, level);
+    
+    // Check if exceeded max levels
+    if (visitData.count > MAX_MAZE_LEVELS) {
+      console.log(`🚫 Maze level cap exceeded for IP ${clientIp}: ${visitData.count} visits, max level ${visitData.maxLevel}`);
+      
+      // Drop connection - return error page
+      res.status(429).send(`
+        <html>
+          <head><title>Maze Limit Reached</title></head>
+          <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f7fafc;">
+            <div style="max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <h1 style="color: #e53e3e;">⚠️ Maze Limit Reached</h1>
+              <p style="color: #4a5568; font-size: 1.1em; margin: 20px 0;">
+                You have reached the maximum depth of ${MAX_MAZE_LEVELS} levels in the maze.
+              </p>
+              <p style="color: #718096; font-size: 0.9em;">
+                Maximum level reached: ${visitData.maxLevel}<br>
+                Total visits: ${visitData.count}
+              </p>
+              <div style="margin-top: 30px; padding: 20px; background: #fed7d7; border-left: 4px solid #e53e3e; border-radius: 4px;">
+                <p style="color: #742a2a; margin: 0;">
+                  <strong>Connection dropped</strong> to protect server resources from excessive requests.
+                </p>
+              </div>
+            </div>
+          </body>
+        </html>
+      `);
+      return;
+    }
+    
+    mazeVisits.set(clientIp, visitData);
+  }
   
   // Update Stats
   if (!activeTraps.has(clientIp)) {
@@ -219,7 +316,7 @@ app.get('/maze/:level', async (req, res) => {
   
   activeTraps.set(clientIp, {
     level: level,
-    lastSeen: Date.now() / 1000
+    lastSeen: now
   });
 
   // 1. The Tarpit Delay (Waste their time)
