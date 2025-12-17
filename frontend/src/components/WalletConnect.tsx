@@ -1,54 +1,41 @@
 import { useWeb3 } from "../contexts/Web3Context";
-import { Wallet, LogOut, AlertCircle } from "lucide-react";
+import { Wallet, LogOut } from "lucide-react";
 
 export function WalletConnect() {
-  const { address, isConnected, isConnecting, connect, disconnect, error, chainId } = useWeb3();
-
-  const formatAddress = (addr: string | null) => {
-    if (!addr) return "";
-    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-  };
+  const { address, isConnected, connectWallet, disconnectWallet } = useWeb3();
 
   if (isConnected && address) {
     return (
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2 px-4 py-2 bg-primary-900/50 rounded-lg border border-primary-700">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-          <span className="text-sm font-mono">{formatAddress(address)}</span>
-          {chainId && (
-            <span className="text-xs text-gray-400">
-              Chain: {chainId}
+      <div className="flex items-center gap-3">
+        <div className="glass px-4 py-2 border border-cyan-500/40 rounded retro-border">
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+              <div className="absolute inset-0 w-2 h-2 bg-green-400 rounded-full animate-ping opacity-75" />
+            </div>
+            <span className="text-sm font-mono text-cyan-300 font-semibold retro-glow">
+              {address.slice(0, 6)}...{address.slice(-4)}
             </span>
-          )}
+          </div>
         </div>
         <button
-          onClick={disconnect}
-          className="flex items-center gap-2 px-4 py-2 bg-red-900/50 hover:bg-red-900/70 rounded-lg border border-red-700 transition-colors"
+          onClick={disconnectWallet}
+          className="retro-button px-4 py-2 flex items-center gap-2 font-mono text-sm"
         >
           <LogOut className="w-4 h-4" />
-          <span>Disconnect</span>
+          <span>DISCONNECT</span>
         </button>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <button
-        onClick={connect}
-        disabled={isConnecting}
-        className="flex items-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg font-medium transition-colors"
-      >
-        <Wallet className="w-5 h-5" />
-        {isConnecting ? "Connecting..." : "Connect Wallet"}
-      </button>
-      {error && (
-        <div className="flex items-center gap-2 text-red-400 text-sm">
-          <AlertCircle className="w-4 h-4" />
-          <span>{error}</span>
-        </div>
-      )}
-    </div>
+    <button
+      onClick={connectWallet}
+      className="retro-button px-5 py-2.5 flex items-center gap-2 font-mono"
+    >
+      <Wallet className="w-4 h-4" />
+      <span>CONNECT</span>
+    </button>
   );
 }
-
