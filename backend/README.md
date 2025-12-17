@@ -2,6 +2,14 @@
 
 This is the bot detection backend server for the OMNEE Protocol. It implements the "maze trap" system that catches bots by redirecting them to an infinite maze of fake product pages.
 
+**Features:**
+- ✅ Redis persistence (survives server restarts)
+- ✅ Automatic fallback to in-memory storage
+- ✅ Rate limiting (prevents DOS attacks)
+- ✅ Infinite maze trap for bots
+- ✅ Real-time statistics
+- ✅ Reusable Blue Team auth middleware
+
 ## Features
 
 - **Speed Trap**: Detects bots making rapid requests (< 0.5s apart)
@@ -19,7 +27,24 @@ cd backend
 npm install
 ```
 
-### 2. Start Server
+### 2. Configure Redis (Optional but Recommended)
+
+**With Redis (persistent storage):**
+```bash
+export REDIS_URL=redis://localhost:6379
+npm start
+```
+
+**Without Redis (in-memory fallback):**
+```bash
+npm start
+```
+
+The server automatically falls back to in-memory storage if Redis is unavailable.
+
+See [REDIS_SETUP.md](./REDIS_SETUP.md) for detailed Redis configuration.
+
+### 3. Start Server
 
 ```bash
 # Development (with auto-reload)
@@ -108,6 +133,34 @@ Verifies wallet address (placeholder - extend for token balance checks).
 
 **Parameters:**
 - `address` - Wallet address to verify
+
+## Blue Team Auth Middleware
+
+The server uses a reusable Blue Team authentication middleware (`middleware/blue-team-auth.js`) for consistent bot detection.
+
+**Features:**
+- Agent key authentication via `X-Agent-Auth` header
+- Speed trap detection (redirects bots to maze)
+- Request logging to Redis
+- Configurable skip paths
+- Optional or required authentication modes
+
+**Usage Example:**
+```javascript
+import { blueTeamAuth, requireBlueTeamAuth } from './middleware/blue-team-auth.js';
+
+// Apply globally with skip paths
+app.use(blueTeamAuth({
+  skipPaths: ['/stats', '/maze', '/generate-key']
+}));
+
+// Require auth on specific route
+app.get('/admin', requireBlueTeamAuth(), (req, res) => {
+  // Only accessible with valid agent key
+});
+```
+
+See [middleware/README.md](./middleware/README.md) for complete documentation.
 
 ## How It Works
 

@@ -4,6 +4,8 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import emailWalletRouter from './email-wallet.js';
+import store from './redis-store.js';
+import { blueTeamAuth } from './middleware/blue-team-auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,19 +14,13 @@ const app = express();
 const PORT = process.env.PORT || 8000;
 
 // --- CONFIGURATION ---
-const FRIENDLY_AGENT_KEY = process.env.AGENT_KEY || "my_secret_agent_pass_123";
-const SPEED_TRAP_THRESHOLD = 0.5; // seconds between requests (for bots)
-const AGENT_KEY_THRESHOLD = 0.2; // seconds for authenticated agents
 const MAX_MAZE_LEVELS = 50; // Hard cap on maze levels per IP
 const MAX_REQUESTS_PER_SECOND = 10; // Max requests per second per IP for maze
 const MAZE_RATE_LIMIT_WINDOW = 1; // 1 second window
 
-// --- IN-MEMORY DATABASE (Replace with Redis for Production) ---
-const activeTraps = new Map(); // { "ip": { level: number, lastSeen: timestamp } }
-let totalTrappedCount = 0;
-const requestLog = new Map(); // { "ip": timestamp }
-const mazeVisits = new Map(); // { "ip": { count: number, firstVisit: timestamp, lastVisit: timestamp } }
-const mazeRequestRate = new Map(); // { "ip": { requests: [timestamp, ...], lastCleanup: timestamp } }
+// --- PERSISTENT STORAGE (Redis with in-memory fallback) ---
+// All data is now stored in Redis for persistence across server restarts
+// Falls back to in-memory storage if Redis is unavailable
 
 // --- MIDDLEWARE ---
 app.use(cors({
@@ -37,6 +33,7 @@ app.use(express.json());
 app.use('/api/email-wallet', emailWalletRouter);
 
 // --- HELPER FUNCTIONS ---
+// Note: generateAgentKey moved to middleware, but keeping here for /generate-key endpoint
 function generateAgentKey(length = 32) {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
@@ -164,58 +161,57 @@ function generateMazeHTML(level, trapData) {
   `;
 }
 
-// --- THE MIDDLEWARE (The Bouncer) ---
-app.use((req, res, next) => {
-  const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
-  const currentTime = Date.now() / 1000;
-  
-  // Skip checks for dashboard, maze, or key generation (these are public or already trapped)
-  if (req.path.startsWith('/stats') || 
-      req.path.startsWith('/maze') || 
-      req.path === '/generate-key' ||
-      req.path === '/verify-wallet') {
-    return next();
-  }
-  
-  // /me endpoint is protected - bots will get trapped if they hit it too fast
-
-  // 1. VIP PASS CHECK - Legacy Agent Key
-  const agentKey = req.headers['x-agent-auth'];
-  if (agentKey === FRIENDLY_AGENT_KEY) {
-    return next();
-  }
-
-  // 2. SPEED TRAP (for non-authenticated requests)
-  const lastRequestTime = requestLog.get(clientIp) || 0;
-  requestLog.set(clientIp, currentTime);
-  const timeDiff = currentTime - lastRequestTime;
-  
-  // If they are hitting regular endpoints too fast (< 0.5s)
-  if (timeDiff < SPEED_TRAP_THRESHOLD) {
-    // REDIRECT TO TRAP (Level 1 of the maze)
-    return res.redirect(307, '/maze/1');
-  }
-
-  next();
-});
+// --- BLUE TEAM AUTHENTICATION MIDDLEWARE ---
+// Apply Blue Team auth to all routes (with skip paths for public endpoints)
+app.use(blueTeamAuth({
+  skipPaths: ['/stats', '/maze', '/generate-key', '/verify-wallet', '/api/email-wallet']
+}));
 
 // --- ENDPOINT 1: THE DASHBOARD FEED (The Watchtower) ---
-app.get('/stats/trapped', (req, res) => {
+app.get('/stats/trapped', async (req, res) => {
   const currentTime = Date.now() / 1000;
-  const activeIps = Array.from(activeTraps.entries())
-    .filter(([ip, data]) => currentTime - data.lastSeen < 30)
-    .map(([ip, data]) => ({ ip, level: data.level }));
+  const allTraps = await store.getAllActiveTraps();
+  
+  const activeIps = Object.entries(allTraps)
+    .filter(([ip, data]) => data && currentTime - data.lastSeen < 30)
+    .map(async ([ip, data]) => {
+      const visitData = await store.getMazeVisits(ip);
+      return {
+        ip,
+        level: data.level,
+        visits: visitData ? visitData.count : 0,
+        maxLevel: visitData ? visitData.maxLevel : data.level,
+        rateLimited: visitData && visitData.count > MAX_MAZE_LEVELS
+      };
+    });
+  
+  const resolvedActiveIps = await Promise.all(activeIps);
+  
+  // Get rate limit stats
+  const allVisits = await store.getAllMazeVisits();
+  const rateLimitedIps = Object.entries(allVisits)
+    .filter(([ip, data]) => data && data.count > MAX_MAZE_LEVELS)
+    .map(([ip, data]) => ({ ip, visits: data.count, maxLevel: data.maxLevel }));
+  
+  const totalTrappedCount = await store.getTotalTrappedCount();
   
   res.json({
     trappedCount: totalTrappedCount,
-    activeBots: activeIps
+    activeBots: resolvedActiveIps,
+    rateLimited: rateLimitedIps.length,
+    rateLimitedBots: rateLimitedIps,
+    limits: {
+      maxMazeLevels: MAX_MAZE_LEVELS,
+      maxRequestsPerSecond: MAX_REQUESTS_PER_SECOND
+    },
+    storage: store.useRedis ? 'redis' : 'memory'
   });
 });
 
 // --- HELPER: Clean up old rate limit entries ---
-function cleanMazeRateLimit(ip) {
+async function cleanMazeRateLimit(ip) {
   const now = Date.now() / 1000;
-  const rateData = mazeRequestRate.get(ip);
+  const rateData = await store.getMazeRequestRate(ip);
   
   if (!rateData) return;
   
@@ -224,10 +220,10 @@ function cleanMazeRateLimit(ip) {
   
   // Clean up if no recent requests
   if (rateData.requests.length === 0 && now - rateData.lastCleanup > 60) {
-    mazeRequestRate.delete(ip);
+    await store.deleteMazeRequestRate(ip);
   } else {
     rateData.lastCleanup = now;
-    mazeRequestRate.set(ip, rateData);
+    await store.setMazeRequestRate(ip, rateData);
   }
 }
 
@@ -238,11 +234,12 @@ app.get('/maze/:level', async (req, res) => {
   const now = Date.now() / 1000;
   
   // === RATE LIMITING: Request Rate Check ===
-  if (!mazeRequestRate.has(clientIp)) {
-    mazeRequestRate.set(clientIp, { requests: [now], lastCleanup: now });
+  const existingRateData = await store.getMazeRequestRate(clientIp);
+  if (!existingRateData) {
+    await store.setMazeRequestRate(clientIp, { requests: [now], lastCleanup: now });
   } else {
-    const rateData = mazeRequestRate.get(clientIp);
-    cleanMazeRateLimit(clientIp);
+    await cleanMazeRateLimit(clientIp);
+    const rateData = await store.getMazeRequestRate(clientIp);
     
     // Check current request rate
     const recentRequests = rateData.requests.filter(timestamp => now - timestamp < MAZE_RATE_LIMIT_WINDOW);
@@ -264,21 +261,21 @@ app.get('/maze/:level', async (req, res) => {
     
     // Add current request
     rateData.requests.push(now);
-    mazeRequestRate.set(clientIp, rateData);
+    await store.setMazeRequestRate(clientIp, rateData);
   }
   
   // === RATE LIMITING: Maze Level Cap ===
-  if (!mazeVisits.has(clientIp)) {
-    mazeVisits.set(clientIp, { count: 1, firstVisit: now, lastVisit: now, maxLevel: level });
+  const existingVisitData = await store.getMazeVisits(clientIp);
+  if (!existingVisitData) {
+    await store.setMazeVisits(clientIp, { count: 1, firstVisit: now, lastVisit: now, maxLevel: level });
   } else {
-    const visitData = mazeVisits.get(clientIp);
-    visitData.count++;
-    visitData.lastVisit = now;
-    visitData.maxLevel = Math.max(visitData.maxLevel, level);
+    existingVisitData.count++;
+    existingVisitData.lastVisit = now;
+    existingVisitData.maxLevel = Math.max(existingVisitData.maxLevel, level);
     
     // Check if exceeded max levels
-    if (visitData.count > MAX_MAZE_LEVELS) {
-      console.log(`🚫 Maze level cap exceeded for IP ${clientIp}: ${visitData.count} visits, max level ${visitData.maxLevel}`);
+    if (existingVisitData.count > MAX_MAZE_LEVELS) {
+      console.log(`🚫 Maze level cap exceeded for IP ${clientIp}: ${existingVisitData.count} visits, max level ${existingVisitData.maxLevel}`);
       
       // Drop connection - return error page
       res.status(429).send(`
@@ -291,8 +288,8 @@ app.get('/maze/:level', async (req, res) => {
                 You have reached the maximum depth of ${MAX_MAZE_LEVELS} levels in the maze.
               </p>
               <p style="color: #718096; font-size: 0.9em;">
-                Maximum level reached: ${visitData.maxLevel}<br>
-                Total visits: ${visitData.count}
+                Maximum level reached: ${existingVisitData.maxLevel}<br>
+                Total visits: ${existingVisitData.count}
               </p>
               <div style="margin-top: 30px; padding: 20px; background: #fed7d7; border-left: 4px solid #e53e3e; border-radius: 4px;">
                 <p style="color: #742a2a; margin: 0;">
@@ -306,15 +303,16 @@ app.get('/maze/:level', async (req, res) => {
       return;
     }
     
-    mazeVisits.set(clientIp, visitData);
+    await store.setMazeVisits(clientIp, existingVisitData);
   }
   
   // Update Stats
-  if (!activeTraps.has(clientIp)) {
-    totalTrappedCount++;
+  const existingTrap = await store.getActiveTrap(clientIp);
+  if (!existingTrap) {
+    await store.incrementTotalTrappedCount();
   }
   
-  activeTraps.set(clientIp, {
+  await store.setActiveTrap(clientIp, {
     level: level,
     lastSeen: now
   });
@@ -332,6 +330,7 @@ app.get('/maze/:level', async (req, res) => {
 });
 
 // --- ENDPOINT 3: THE PERSONAL API (The Vault) ---
+// Protected endpoint - requires Blue Team auth or will trigger speed trap
 app.get('/me', (req, res) => {
   try {
     const mePath = path.join(__dirname, 'me.json');
@@ -365,6 +364,7 @@ app.get('/me', (req, res) => {
 });
 
 // --- ENDPOINT 4: GENERATE AGENT KEY ---
+// Public endpoint - no auth required
 app.post('/generate-key', (req, res) => {
   const newKey = generateAgentKey();
   res.json({ key: newKey });
@@ -383,12 +383,58 @@ app.get('/verify-wallet/:address', (req, res) => {
   });
 });
 
+// --- CLEANUP TASK: Periodic cleanup of old entries ---
+setInterval(async () => {
+  const now = Date.now() / 1000;
+  const CLEANUP_AGE = 3600; // 1 hour
+  
+  try {
+    // Clean up old maze visits (older than 1 hour)
+    const allVisits = await store.getAllMazeVisits();
+    for (const [ip, data] of Object.entries(allVisits)) {
+      if (data && now - data.lastVisit > CLEANUP_AGE) {
+        await store.deleteMazeVisits(ip);
+      }
+    }
+    
+    // Clean up old rate limit data
+    const allTraps = await store.getAllActiveTraps();
+    for (const ip of Object.keys(allTraps)) {
+      await cleanMazeRateLimit(ip);
+    }
+    
+    // Clean up old active traps (older than 5 minutes)
+    for (const [ip, data] of Object.entries(allTraps)) {
+      if (data && now - data.lastSeen > 300) {
+        await store.deleteActiveTrap(ip);
+      }
+    }
+  } catch (error) {
+    console.error('Cleanup task error:', error.message);
+  }
+}, 60000); // Run every minute
+
+// --- GRACEFUL SHUTDOWN ---
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM received, closing Redis connection...');
+  await store.close();
+  process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+  console.log('SIGINT received, closing Redis connection...');
+  await store.close();
+  process.exit(0);
+});
+
 // --- START SERVER ---
 app.listen(PORT, () => {
   console.log(`\n🛡️  Blue Team Bot Trap Server Running`);
   console.log(`📍 Port: ${PORT}`);
-  console.log(`🔑 Agent Key: ${FRIENDLY_AGENT_KEY}`);
-  console.log(`⚡ Speed Trap: ${SPEED_TRAP_THRESHOLD}s threshold\n`);
+  console.log(`🔑 Agent Key: ${process.env.AGENT_KEY || "my_secret_agent_pass_123"}`);
+  console.log(`⚡ Speed Trap: 0.5s threshold`);
+  console.log(`🚫 Maze Limits: ${MAX_MAZE_LEVELS} levels max, ${MAX_REQUESTS_PER_SECOND} req/s per IP`);
+  console.log(`💾 Storage: ${store.useRedis ? 'Redis (persistent)' : 'In-memory (fallback)'}\n`);
   console.log(`✅ Endpoints:`);
   console.log(`   GET  /stats/trapped - Bot statistics`);
   console.log(`   GET  /maze/:level - Bot trap (infinite maze)`);
