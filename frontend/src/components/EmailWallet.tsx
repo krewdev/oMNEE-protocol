@@ -13,6 +13,7 @@ import {
   Copy,
   RefreshCw
 } from "lucide-react";
+import { useWeb3 } from "../contexts/Web3Context";
 
 const API_URL = import.meta.env.VITE_BLUE_TEAM_API_URL || "http://localhost:8000";
 
@@ -23,6 +24,7 @@ interface WalletData {
 }
 
 export function EmailWallet() {
+  const { connectWithPrivateKey, address: connectedAddress } = useWeb3();
   const [step, setStep] = useState<"email" | "verify" | "password" | "created" | "login" | "export">("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -31,6 +33,7 @@ export function EmailWallet() {
   const [showPassword, setShowPassword] = useState(false);
   const [showPrivateKey, setShowPrivateKey] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [walletData, setWalletData] = useState<WalletData | null>(null);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
@@ -135,6 +138,21 @@ export function EmailWallet() {
       setSessionToken(data.sessionToken);
       setWalletData(data.wallet);
       setStep("created");
+      
+      // Automatically connect wallet if we have mnemonic (new wallet)
+      if (data.wallet.mnemonic) {
+        try {
+          setConnecting(true);
+          // Create wallet from mnemonic to get private key
+          const wallet = ethers.Wallet.fromPhrase(data.wallet.mnemonic);
+          await connectWithPrivateKey(wallet.privateKey);
+        } catch (connectErr: any) {
+          console.error("Failed to auto-connect wallet:", connectErr);
+          // Don't show error - wallet was created successfully
+        } finally {
+          setConnecting(false);
+        }
+      }
     } catch (err: any) {
       setError(err.message || "Failed to verify code");
     } finally {
@@ -177,6 +195,31 @@ export function EmailWallet() {
       setSessionToken(data.sessionToken);
       setWalletData(data.wallet);
       setStep("created");
+      
+      // Automatically connect wallet by exporting private key
+      try {
+        setConnecting(true);
+        const exportResponse = await fetch(`${API_URL}/api/email-wallet/export-key`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Session-Token": data.sessionToken,
+          },
+          body: JSON.stringify({ password }),
+        });
+
+        const exportData = await exportResponse.json();
+        if (exportResponse.ok && exportData.success && exportData.privateKey) {
+          await connectWithPrivateKey(exportData.privateKey);
+        } else {
+          console.warn("Could not auto-connect: Private key export failed or not available");
+        }
+      } catch (connectErr: any) {
+        console.error("Failed to auto-connect wallet:", connectErr);
+        // Don't show error - wallet login was successful, user can connect manually later
+      } finally {
+        setConnecting(false);
+      }
     } catch (err: any) {
       setError(err.message || "Failed to login");
     } finally {
@@ -300,6 +343,24 @@ STORE IT IN A SECURE LOCATION!`;
           <h2 className="text-2xl font-bold text-white mb-2">Email Wallet</h2>
           <p className="text-gray-400">Your custodial wallet is ready</p>
         </div>
+
+        {connecting && (
+          <div className="bg-blue-900/20 border border-blue-700/50 rounded-xl p-4">
+            <div className="flex items-center gap-3">
+              <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
+              <p className="text-blue-300">Connecting wallet to platform...</p>
+            </div>
+          </div>
+        )}
+
+        {connectedAddress === walletData.address && (
+          <div className="bg-green-900/20 border border-green-700/50 rounded-xl p-4">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="w-5 h-5 text-green-400" />
+              <p className="text-green-300">Wallet connected successfully!</p>
+            </div>
+          </div>
+        )}
 
         <div className="bg-green-900/20 border border-green-700/50 rounded-xl p-6">
           <div className="flex items-center gap-2 text-green-400 mb-4">

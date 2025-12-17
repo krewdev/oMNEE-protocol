@@ -12,6 +12,7 @@ import {
   Loader2,
   FileText
 } from "lucide-react";
+import { useWeb3 } from "../contexts/Web3Context";
 
 interface WalletData {
   address: string;
@@ -20,6 +21,7 @@ interface WalletData {
 }
 
 export function WalletCreator() {
+  const { connectWithPrivateKey, address: connectedAddress } = useWeb3();
   const [walletType, setWalletType] = useState<"random" | "mnemonic" | "privateKey">("random");
   const [customMnemonic, setCustomMnemonic] = useState("");
   const [customPrivateKey, setCustomPrivateKey] = useState("");
@@ -29,6 +31,7 @@ export function WalletCreator() {
   const [createdWallet, setCreatedWallet] = useState<WalletData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [connecting, setConnecting] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
 
   const generateRandomWallet = () => {
@@ -95,6 +98,17 @@ export function WalletCreator() {
       }
 
       setCreatedWallet(walletData);
+      
+      // Automatically connect the wallet
+      try {
+        setConnecting(true);
+        await connectWithPrivateKey(walletData.privateKey);
+      } catch (connectErr: any) {
+        console.error("Failed to auto-connect wallet:", connectErr);
+        // Don't show error - wallet was created successfully, user can connect manually
+      } finally {
+        setConnecting(false);
+      }
     } catch (err: any) {
       setError(err.message || "Failed to create wallet");
     } finally {
@@ -184,6 +198,24 @@ STORE IT IN A SECURE LOCATION!`;
           Generate a new wallet or import from mnemonic/private key. Download your private key securely.
         </p>
       </div>
+
+      {connecting && (
+        <div className="bg-blue-900/20 border border-blue-700/50 rounded-xl p-4 mb-4">
+          <div className="flex items-center gap-3">
+            <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
+            <p className="text-blue-300">Connecting wallet to platform...</p>
+          </div>
+        </div>
+      )}
+
+      {createdWallet && connectedAddress === createdWallet.address && (
+        <div className="bg-green-900/20 border border-green-700/50 rounded-xl p-4 mb-4">
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 text-green-400" />
+            <p className="text-green-300">Wallet connected successfully!</p>
+          </div>
+        </div>
+      )}
 
       {!createdWallet ? (
         <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-700/50 space-y-6">
