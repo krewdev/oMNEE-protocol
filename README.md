@@ -1,10 +1,10 @@
-# QUIPO Protocol
+# oMNEE Protocol
 
-QUIPO: The Omnichain Settlement Layer for Agentic Economies.
+OMNEE: The Omnichain Settlement Layer for Agentic Economies.
 
 ## Overview
 
-The QUIPO Protocol is a Universal Settlement Token system designed for AI Agents. It creates a programmable layer on top of the MNEE token, enabling Rich Transfers with metadata for RWA (Real World Asset) tokenization and cross-chain operations.
+The OMNEE Protocol is a Universal Settlement Token system designed for AI Agents. It creates a programmable layer on top of the MNEE token, enabling Rich Transfers with metadata for RWA (Real World Asset) tokenization and cross-chain operations.
 
 ## Architecture
 
@@ -23,7 +23,7 @@ The Universal Settlement Token - a programmable "wrapper" token that represents 
 **Special Functions:**
 - `transferWithMetadata()` - Transfer tokens with attached metadata for tracking
 
-### 2. QuipoHub.sol
+### 2. OmneeHub.sol
 
 The "Central Bank" vault contract that manages MNEE collateral and controls omMNEE minting/burning.
 
@@ -61,14 +61,14 @@ npm install --save-dev solc@0.8.20
 
 ## Deployment
 
-Deploy the QUIPO Hub (which automatically deploys the omMNEE token):
+Deploy the OMNEE Hub (which automatically deploys the omMNEE token):
 
 ```bash
 npx hardhat run scripts/deploy.js --network <network-name>
 ```
 
 The deployment script will output:
-- QuipoHub contract address
+- OmneeHub contract address
 - omMNEE Token contract address
 
 ## Usage Flow
@@ -104,7 +104,7 @@ The deployment script will output:
 ## Smart Contract Addresses
 
 - **MNEE Token**: `0x8ccedbAe4916b79da7F3F612EfB2EB93A2bFD6cF`
-- **QuipoHub**: (Deploy and add address here)
+- **OmneeHub**: (Deploy and add address here)
 - **omMNEE Token**: (Automatically deployed by Hub)
 
 ## Events
@@ -122,7 +122,7 @@ The contracts emit events for off-chain Agent Listeners to track:
 ```
 ├── contracts/
 │   ├── OmneeToken.sol      # The omMNEE ERC20 token
-│   └── QuipoHub.sol        # The vault/hub contract
+│   └── OmneeHub.sol        # The vault/hub contract
 ├── scripts/
 │   └── deploy.js           # Deployment script
 ├── hardhat.config.ts       # Hardhat configuration

@@ -1,55 +1,77 @@
+import { Link, useLocation } from "react-router-dom";
 import { ReactNode } from "react";
 import { WalletConnect } from "./WalletConnect";
-import { NavLink } from "react-router-dom";
-import { LayoutDashboard, ArrowDownCircle, ArrowUpCircle, Send, Rocket, Settings, History } from "lucide-react";
+import { QuipoLogo } from "./QuipoLogo";
+import { useWeb3 } from "../contexts/Web3Context";
 
 interface LayoutProps {
   children: ReactNode;
 }
 
 export function Layout({ children }: LayoutProps) {
-  const navItems = [
-    { path: "/", label: "Dashboard", icon: LayoutDashboard },
-    { path: "/deposit", label: "Deposit", icon: ArrowDownCircle },
-    { path: "/transfer", label: "Transfer", icon: Send },
-    { path: "/redeem", label: "Redeem", icon: ArrowUpCircle },
-    { path: "/teleport", label: "Teleport", icon: Rocket },
-    { path: "/admin", label: "Admin", icon: Settings },
-    { path: "/history", label: "History", icon: History },
+  const location = useLocation();
+  const { isConnected, address } = useWeb3();
+
+  // Check if a wallet was created via WalletCreator (not just connected)
+  const walletCreated = localStorage.getItem('wallet_created') === 'true';
+  const createdWalletAddress = localStorage.getItem('created_wallet_address');
+  const isCreatedWalletConnected = walletCreated && isConnected && address && 
+    createdWalletAddress?.toLowerCase() === address.toLowerCase();
+
+  const navLinks = [
+    { path: "/", label: "Dashboard" },
+    { path: "/deposit", label: "Deposit" },
+    { path: "/redeem", label: "Redeem" },
+    { path: "/transfer", label: "Transfer" },
+    { path: "/teleport", label: "Teleport" },
+    { path: "/faucet", label: "Faucet" },
+    { path: "/create-wallet", label: isCreatedWalletConnected ? "View Wallet" : "Create Wallet" },
+    { path: "/email-wallet", label: "Email Wallet" },
+    { path: "/history", label: "History" },
+    { path: "/admin", label: "Admin" },
   ];
 
   return (
-    <div className="min-h-screen bg-[#0a0e27] text-white">
-      <header className="border-b border-primary-800/50 bg-primary-950/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+    <div className="min-h-screen text-white relative overflow-hidden crt-screen">
+      {/* Data stream effect */}
+      <div className="data-stream" />
+      
+      {/* Animated background gradient */}
+      <div className="fixed inset-0 animated-gradient -z-10" />
+      
+      {/* Hex pattern overlay */}
+      <div className="fixed inset-0 hex-pattern opacity-30 -z-10" />
+      
+      {/* Pattern glare overlay */}
+      <div className="fixed inset-0 pattern-glare -z-10" />
+      
+      {/* Radial glow effects */}
+      <div className="fixed top-0 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl -z-10 animate-pulse" />
+      <div className="fixed bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl -z-10 animate-pulse" style={{ animationDelay: "1s" }} />
+
+      {/* Header */}
+      <header className="glass-strong border-b border-cyan-500/30 sticky top-0 z-50 pattern-glare">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-8">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center">
-                  <span className="text-lg font-bold">O</span>
-                </div>
-                <span className="text-xl font-bold">QUIPO Protocol</span>
-              </div>
-              <nav className="hidden md:flex items-center gap-1">
-                {navItems.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <NavLink
-                      key={item.path}
-                      to={item.path}
-                      className={({ isActive }) =>
-                        `flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                          isActive
-                            ? "bg-primary-700/50 text-white"
-                            : "text-gray-400 hover:text-white hover:bg-primary-800/30"
-                        }`
-                      }
-                    >
-                      <Icon className="w-4 h-4" />
-                      <span>{item.label}</span>
-                    </NavLink>
-                  );
-                })}
+              <QuipoLogo />
+              <nav className="hidden lg:flex gap-2">
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.path}
+                    to={link.path}
+                    className={`relative px-4 py-2 rounded text-sm font-mono transition-all duration-300 ${
+                      location.pathname === link.path
+                        ? "retro-button text-cyan-400"
+                        : "text-cyan-300/70 hover:text-cyan-400 hover:bg-cyan-500/10 border border-cyan-500/20"
+                    }`}
+                  >
+                    {link.label}
+                    {location.pathname === link.path && (
+                      <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 blur-sm -z-10" />
+                    )}
+                  </Link>
+                ))}
               </nav>
             </div>
             <WalletConnect />
@@ -57,33 +79,29 @@ export function Layout({ children }: LayoutProps) {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 md:pb-8">
-        {children}
-      </main>
-
       {/* Mobile Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-primary-950/95 backdrop-blur-sm border-t border-primary-800/50 md:hidden">
-        <div className="flex items-center justify-around h-16">
-          {navItems.slice(0, 5).map((item) => {
-            const Icon = item.icon;
-            return (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                className={({ isActive }) =>
-                  `flex flex-col items-center gap-1 px-3 py-2 ${
-                    isActive ? "text-primary-400" : "text-gray-500"
-                  }`
-                }
+      <nav className="lg:hidden glass border-b border-cyan-500/30">
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+            {navLinks.map((link) => (
+              <Link
+                key={link.path}
+                to={link.path}
+                className={`px-3 py-2 rounded text-xs font-mono whitespace-nowrap transition-all ${
+                  location.pathname === link.path
+                    ? "retro-button text-cyan-400"
+                    : "text-cyan-300/70 hover:text-cyan-400 hover:bg-cyan-500/10 border border-cyan-500/20"
+                }`}
               >
-                <Icon className="w-5 h-5" />
-                <span className="text-xs">{item.label}</span>
-              </NavLink>
-            );
-          })}
+                {link.label}
+              </Link>
+            ))}
+          </div>
         </div>
       </nav>
+
+      {/* Main Content */}
+      <main className="container mx-auto px-4 py-8 relative z-10">{children}</main>
     </div>
   );
 }
-

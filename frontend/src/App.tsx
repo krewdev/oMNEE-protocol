@@ -3,11 +3,14 @@ import { Web3Provider } from "./contexts/Web3Context";
 import { Layout } from "./components/Layout";
 import { Dashboard } from "./pages/Dashboard";
 import { DepositPage } from "./pages/DepositPage";
-import { TransferPage } from "./pages/TransferPage";
 import { RedeemPage } from "./pages/RedeemPage";
+import { TransferPage } from "./pages/TransferPage";
 import { TeleportPage } from "./pages/TeleportPage";
-import { AdminPage } from "./pages/AdminPage";
 import { HistoryPage } from "./pages/HistoryPage";
+import { AdminPage } from "./pages/AdminPage";
+import { FaucetPage } from "./pages/FaucetPage";
+import { WalletCreatorPage } from "./pages/WalletCreatorPage";
+import { EmailWalletPage } from "./pages/EmailWalletPage";
 
 function App() {
   return (
@@ -17,11 +20,14 @@ function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/deposit" element={<DepositPage />} />
-            <Route path="/transfer" element={<TransferPage />} />
             <Route path="/redeem" element={<RedeemPage />} />
+            <Route path="/transfer" element={<TransferPage />} />
             <Route path="/teleport" element={<TeleportPage />} />
-            <Route path="/admin" element={<AdminPage />} />
             <Route path="/history" element={<HistoryPage />} />
+            <Route path="/admin" element={<AdminPage />} />
+            <Route path="/faucet" element={<FaucetPage />} />
+            <Route path="/create-wallet" element={<WalletCreatorPage />} />
+            <Route path="/email-wallet" element={<EmailWalletPage />} />
           </Routes>
         </Layout>
       </BrowserRouter>
@@ -30,4 +36,3 @@ function App() {
 }
 
 export default App;
-

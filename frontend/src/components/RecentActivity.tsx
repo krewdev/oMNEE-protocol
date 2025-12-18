@@ -69,10 +69,12 @@ export function RecentActivity() {
   }
 
   return (
-    <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-700/50">
-      <div className="flex items-center gap-3 mb-4">
-        <Activity className="w-5 h-5 text-gray-400" />
-        <h3 className="text-lg font-semibold text-white">Recent Activity</h3>
+    <div className="glass-strong rounded-2xl p-6 border border-blue-500/20">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="p-2 bg-blue-500/20 rounded-lg">
+          <Activity className="w-5 h-5 text-blue-400" />
+        </div>
+        <h3 className="text-lg font-bold text-white">Recent Activity</h3>
       </div>
       <div className="space-y-3 max-h-96 overflow-y-auto">
         {events.length === 0 ? (
@@ -87,7 +89,7 @@ export function RecentActivity() {
             return (
               <div
                 key={`${event.transactionHash}-${index}`}
-                className="flex items-start gap-4 p-3 bg-gray-800/30 rounded-lg hover:bg-gray-800/50 transition-colors"
+                className="flex items-start gap-4 p-4 glass rounded-xl border border-blue-500/20 hover:border-blue-400/30 hover:glow-blue transition-all duration-300 group"
               >
                 <span className="text-2xl">{formatted.icon}</span>
                 <div className="flex-1 min-w-0">
@@ -121,4 +123,8 @@ export function RecentActivity() {
     </div>
   );
 }
+
+
+
+
 

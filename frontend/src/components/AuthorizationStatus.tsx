@@ -13,7 +13,8 @@ export function AuthorizationStatus() {
   }
 
   return (
-    <div className="bg-gradient-to-br from-gray-900/50 to-gray-800/30 rounded-xl p-6 border border-gray-700/50 shadow-lg">
+    <div className="glass-strong rounded-2xl p-6 border border-blue-500/20 hover:border-blue-400/30 transition-all duration-300 relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 to-purple-600/5" />
       <div className="flex items-center gap-3 mb-4">
         <div className="p-2 bg-gray-700/50 rounded-lg">
           {isOwner ? (
@@ -59,4 +60,8 @@ export function AuthorizationStatus() {
     </div>
   );
 }
+
+
+
+
 

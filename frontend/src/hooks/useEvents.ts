@@ -43,11 +43,20 @@ export interface AgentAuthorizedEvent {
   timestamp?: number;
 }
 
+export interface AgentRevokedEvent {
+  type: "AgentRevoked";
+  agent: string;
+  blockNumber: number;
+  transactionHash: string;
+  timestamp?: number;
+}
+
 export type ProtocolEvent =
   | CollateralLockedEvent
   | RedemptionRequestedEvent
   | OmniTransferEvent
-  | AgentAuthorizedEvent;
+  | AgentAuthorizedEvent
+  | AgentRevokedEvent;
 
 export function useEvents(limit: number = 50) {
   const { provider } = useWeb3();
@@ -61,20 +70,35 @@ export function useEvents(limit: number = 50) {
       return;
     }
 
+    // Validate addresses - check for formatted addresses with "..."
+    if (HUB_ADDRESS.includes("...") || OM_TOKEN_ADDRESS.includes("...") ||
+        !ethers.isAddress(HUB_ADDRESS) || !ethers.isAddress(OM_TOKEN_ADDRESS)) {
+      setEvents([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const hubContract = getHubContract(provider);
       const omTokenContract = getOmTokenContract(provider);
 
+      if (!hubContract || !omTokenContract) {
+        setEvents([]);
+        setLoading(false);
+        return;
+      }
+
       // Fetch events from last 10000 blocks (adjust as needed)
       const currentBlock = await provider.getBlockNumber();
       const fromBlock = Math.max(0, currentBlock - 10000);
 
-      const [collateralEvents, redemptionEvents, transferEvents, authEvents] = await Promise.all([
+      const [collateralEvents, redemptionEvents, transferEvents, authEvents, revokedEvents] = await Promise.all([
         hubContract.queryFilter(hubContract.filters.CollateralLocked(), fromBlock),
         hubContract.queryFilter(hubContract.filters.RedemptionRequested(), fromBlock),
         omTokenContract.queryFilter(omTokenContract.filters.OmniTransfer(), fromBlock),
         hubContract.queryFilter(hubContract.filters.AgentAuthorized(), fromBlock),
+        hubContract.queryFilter(hubContract.filters.AgentRevoked(), fromBlock),
       ]);
 
       const allEvents: ProtocolEvent[] = [];
@@ -134,6 +158,20 @@ export function useEvents(limit: number = 50) {
           const block = await provider.getBlock(event.blockNumber);
           allEvents.push({
             type: "AgentAuthorized",
+            agent: event.args[0] as string,
+            blockNumber: event.blockNumber,
+            transactionHash: event.transactionHash,
+            timestamp: block?.timestamp,
+          });
+        }
+      }
+
+      // Process AgentRevoked events
+      for (const event of revokedEvents) {
+        if (event instanceof ethers.EventLog) {
+          const block = await provider.getBlock(event.blockNumber);
+          allEvents.push({
+            type: "AgentRevoked",
             agent: event.args[0] as string,
             blockNumber: event.blockNumber,
             transactionHash: event.transactionHash,

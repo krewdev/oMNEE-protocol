@@ -1,6 +1,8 @@
 import { defineConfig } from "hardhat/config";
-import "@nomicfoundation/hardhat-ethers";
 import * as path from "path";
+
+// Import the ethers plugin - must be imported as a side effect
+import "@nomicfoundation/hardhat-ethers";
 
 export default defineConfig({
   solidity: {
@@ -12,18 +14,15 @@ export default defineConfig({
       },
     },
   },
-  networks: {
-    quipo: {
-      url: "https://public-node.testnet.rsk.co", // RSK Testnet - Chain ID 33
-      chainId: 33,
-      type: "http",
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
-    },
-  },
   paths: {
     sources: "./contracts",
     tests: "./test",
     cache: "./cache",
     artifacts: "./artifacts"
   },
+  networks: {
+    localhost: {
+      url: "http://127.0.0.1:8545"
+    }
+  }
 });

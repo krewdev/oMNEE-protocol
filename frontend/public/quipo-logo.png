@@ -1,0 +1,111 @@
+<svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="cubeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#60A5FA" stop-opacity="1" />
+      <stop offset="50%" stop-color="#A78BFA" stop-opacity="1" />
+      <stop offset="100%" stop-color="#EC4899" stop-opacity="0.8" />
+    </linearGradient>
+    <linearGradient id="centerGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#60A5FA" stop-opacity="1" />
+      <stop offset="50%" stop-color="#A78BFA" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#EC4899" stop-opacity="0.7" />
+    </linearGradient>
+    <linearGradient id="arrowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6" stop-opacity="1" />
+      <stop offset="100%" stop-color="#8B5CF6" stop-opacity="1" />
+    </linearGradient>
+    <!-- Glow filters -->
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+      <feMerge>
+        <feMergeNode in="coloredBlur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    <filter id="strongGlow">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur" />
+      <feMerge>
+        <feMergeNode in="coloredBlur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Central glowing sphere -->
+  <circle
+    cx="60"
+    cy="60"
+    r="12"
+    fill="url(#centerGlow)"
+    filter="url(#strongGlow)"
+  />
+
+  <!-- Orbiting bidirectional arrow -->
+  <g>
+    <path
+      d="M 45 60 A 15 15 0 0 1 75 60"
+      stroke="url(#arrowGradient)"
+      stroke-width="3"
+      fill="none"
+      filter="url(#glow)"
+    />
+    <path
+      d="M 70 55 L 75 60 L 70 65 M 50 65 L 45 60 L 50 55"
+      stroke="url(#arrowGradient)"
+      stroke-width="3"
+      fill="none"
+      filter="url(#glow)"
+    />
+  </g>
+
+  <!-- Interconnected cubes forming the Q shape -->
+  <g filter="url(#glow)">
+    <!-- Top cubes -->
+    <rect x="30" y="20" width="8" height="8" fill="url(#cubeGradient)" opacity="0.9" />
+    <rect x="50" y="15" width="8" height="8" fill="url(#cubeGradient)" opacity="0.9" />
+    <rect x="70" y="15" width="8" height="8" fill="url(#cubeGradient)" opacity="0.9" />
+    <rect x="90" y="20" width="8" height="8" fill="url(#cubeGradient)" opacity="0.9" />
+    
+    <!-- Right cubes -->
+    <rect x="100" y="40" width="8" height="8" fill="url(#cubeGradient)" opacity="0.9" />
+    <rect x="100" y="60" width="8" height="8" fill="url(#cubeGradient)" opacity="0.9" />
+    
+    <!-- Bottom cubes -->
+    <rect x="90" y="80" width="8" height="8" fill="url(#cubeGradient)" opacity="0.9" />
+    <rect x="70" y="85" width="8" height="8" fill="url(#cubeGradient)" opacity="0.9" />
+    <rect x="50" y="85" width="8" height="8" fill="url(#cubeGradient)" opacity="0.9" />
+    <rect x="30" y="80" width="8" height="8" fill="url(#cubeGradient)" opacity="0.9" />
+    
+    <!-- Left cubes -->
+    <rect x="20" y="60" width="8" height="8" fill="url(#cubeGradient)" opacity="0.9" />
+    <rect x="20" y="40" width="8" height="8" fill="url(#cubeGradient)" opacity="0.9" />
+    
+    <!-- Q tail -->
+    <rect x="75" y="90" width="8" height="8" fill="url(#cubeGradient)" opacity="0.9" />
+    <rect x="85" y="95" width="8" height="8" fill="url(#cubeGradient)" opacity="0.9" />
+  </g>
+
+  <!-- Connecting lines with arrows -->
+  <g stroke="url(#cubeGradient)" stroke-width="1.5" fill="none" opacity="0.6">
+    <!-- Top connections -->
+    <line x1="34" y1="24" x2="54" y2="19" />
+    <line x1="58" y1="19" x2="74" y2="19" />
+    <line x1="78" y1="19" x2="94" y2="24" />
+    
+    <!-- Right connections -->
+    <line x1="104" y1="44" x2="104" y2="64" />
+    
+    <!-- Bottom connections -->
+    <line x1="94" y1="84" x2="74" y2="89" />
+    <line x1="78" y1="89" x2="54" y2="89" />
+    <line x1="34" y1="84" x2="24" y2="64" />
+    
+    <!-- Left connections -->
+    <line x1="24" y1="44" x2="34" y2="24" />
+    
+    <!-- Q tail connections -->
+    <line x1="79" y1="94" x2="89" y2="99" />
+  </g>
+</svg>
+

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import { Rocket, Loader2, Info, AlertCircle, ExternalLink } from "lucide-react";
 import { useWeb3 } from "../contexts/Web3Context";
@@ -6,6 +6,7 @@ import { useContracts } from "../hooks/useContracts";
 import { useBalances } from "../hooks/useContracts";
 import { useAuthorization } from "../hooks/useContracts";
 import { SUPPORTED_CHAINS, type SupportedChain } from "../utils/constants";
+import { BlueTeamAuth } from "./BlueTeamAuth";
 
 export function TeleportForm() {
   const { signer } = useWeb3();
@@ -16,9 +17,12 @@ export function TeleportForm() {
   const [amount, setAmount] = useState("");
   const [targetChain, setTargetChain] = useState<SupportedChain | "">("");
   const [targetAddress, setTargetAddress] = useState("");
+  const [relayerFee, setRelayerFee] = useState("");
+  const [relayerFeePercent, setRelayerFeePercent] = useState(0.5); // Default 0.5% of amount
   const [teleporting, setTeleporting] = useState(false);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [blueTeamVerified, setBlueTeamVerified] = useState(false);
 
   const canInteract = isAuthorized || isOwner;
 
@@ -39,13 +43,22 @@ export function TeleportForm() {
   const handleTeleport = async () => {
     if (!hubContract || !signer || !amount || !targetChain || !targetAddress) return;
 
+    if (!blueTeamVerified) {
+      setError("Please complete Blue Team bot verification before teleporting");
+      return;
+    }
+
     if (parseFloat(amount) <= 0) {
       setError("Amount must be greater than 0");
       return;
     }
 
-    if (parseFloat(amount) > parseFloat(omMneeBalance)) {
-      setError("Insufficient omMNEE balance");
+    const amountNum = parseFloat(amount);
+    const feeNum = parseFloat(relayerFee);
+    const totalRequired = amountNum + feeNum;
+
+    if (totalRequired > parseFloat(omMneeBalance)) {
+      setError(`Insufficient omMNEE balance. Need ${totalRequired.toFixed(6)} (${amountNum.toFixed(6)} + ${feeNum.toFixed(6)} fee)`);
       return;
     }
 
@@ -58,14 +71,18 @@ export function TeleportForm() {
       setTeleporting(true);
       setError(null);
       const amountWei = ethers.parseEther(amount);
-      const tx = await hubContract.teleportFunds(amountWei, targetChain, targetAddress);
+      const feeWei = ethers.parseEther(relayerFee);
+      const tx = await hubContract.teleportFunds(amountWei, targetChain, targetAddress, feeWei);
       setTxHash(tx.hash);
       await tx.wait();
       setAmount("");
       setTargetChain("");
       setTargetAddress("");
+      setRelayerFee("");
       setTxHash(null);
       await refreshBalances();
+      // Reset verification after successful teleport
+      setBlueTeamVerified(false);
     } catch (err: any) {
       setError(err.message || "Failed to teleport");
       console.error("Teleport error:", err);
@@ -77,7 +94,43 @@ export function TeleportForm() {
   const handleMax = () => {
     if (omMneeBalance) {
       setAmount(omMneeBalance);
+      // Calculate relayer fee for max amount
+      const maxAmount = parseFloat(omMneeBalance);
+      const calculatedFee = (maxAmount * relayerFeePercent) / 100;
+      // Ensure we leave room for the fee
+      const adjustedAmount = maxAmount - calculatedFee;
+      setAmount(adjustedAmount.toString());
+      setRelayerFee(calculatedFee.toString());
     }
+  };
+
+  // Calculate relayer fee when amount changes
+  const calculateRelayerFee = (amountValue: string) => {
+    if (!amountValue || parseFloat(amountValue) <= 0) {
+      setRelayerFee("");
+      return;
+    }
+    const amountNum = parseFloat(amountValue);
+    const fee = (amountNum * relayerFeePercent) / 100;
+    // Minimum fee of 0.001 omMNEE, maximum of 1% of amount
+    const minFee = 0.001;
+    const maxFee = amountNum * 0.01;
+    const finalFee = Math.max(minFee, Math.min(fee, maxFee));
+    setRelayerFee(finalFee.toFixed(6));
+  };
+
+  // Update relayer fee when amount changes
+  useEffect(() => {
+    calculateRelayerFee(amount);
+  }, [amount, relayerFeePercent]);
+
+  const handleBlueTeamVerified = (verified: boolean) => {
+    setBlueTeamVerified(verified);
+    setError(null);
+  };
+
+  const handleBlueTeamError = (error: string) => {
+    setError(error);
   };
 
   if (!canInteract) {
@@ -121,6 +174,26 @@ export function TeleportForm() {
       </div>
 
       <div className="bg-gray-900/50 rounded-xl p-6 border border-gray-700/50 space-y-6">
+        {/* Blue Team Authentication for Cross-Chain Bots */}
+        {!blueTeamVerified && (
+          <div className="bg-purple-900/20 border border-purple-700/50 rounded-lg p-4">
+            <div className="mb-3">
+              <h4 className="text-sm font-semibold text-purple-400 mb-2">
+                🔒 Bot Verification Required for Cross-Chain Operations
+              </h4>
+              <p className="text-xs text-gray-300">
+                Cross-chain teleports require Blue Team verification to ensure only authorized agents
+                can perform cross-chain operations. This prevents unauthorized bots from moving OMNEE
+                across chains.
+              </p>
+            </div>
+            <BlueTeamAuth
+              onVerified={handleBlueTeamVerified}
+              onError={handleBlueTeamError}
+            />
+          </div>
+        )}
+
         {/* Amount Input */}
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -144,6 +217,55 @@ export function TeleportForm() {
           </div>
           <p className="text-xs text-gray-500 mt-2">
             Available: {parseFloat(omMneeBalance).toFixed(6)} omMNEE
+          </p>
+        </div>
+
+        {/* Relayer Fee */}
+        <div className="bg-blue-900/20 border border-blue-700/50 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-3">
+            <label className="block text-sm font-medium text-blue-300">
+              Relayer Fee (for target chain gas)
+            </label>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-400">Fee %:</span>
+              <input
+                type="number"
+                step="0.1"
+                min="0.1"
+                max="1"
+                value={relayerFeePercent}
+                onChange={(e) => setRelayerFeePercent(parseFloat(e.target.value) || 0.5)}
+                className="w-20 px-2 py-1 bg-gray-800/50 border border-gray-700 rounded text-white text-sm"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-400">Relayer Fee:</span>
+              <span className="text-sm font-semibold text-blue-300">
+                {relayerFee || "0.000000"} omMNEE
+              </span>
+            </div>
+            {amount && parseFloat(amount) > 0 && (
+              <>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-400">Teleport Amount:</span>
+                  <span className="text-sm font-semibold text-white">
+                    {parseFloat(amount).toFixed(6)} omMNEE
+                  </span>
+                </div>
+                <div className="flex items-center justify-between pt-2 border-t border-blue-700/30">
+                  <span className="text-sm font-medium text-gray-300">Total Required:</span>
+                  <span className="text-sm font-bold text-white">
+                    {(parseFloat(amount || "0") + parseFloat(relayerFee || "0")).toFixed(6)} omMNEE
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+          <p className="text-xs text-blue-300/80 mt-3">
+            💡 This fee covers gas costs on the target chain (e.g., Solana). The relayer (Agent Listener)
+            uses this to pay for the cross-chain transaction execution.
           </p>
         </div>
 
@@ -241,6 +363,23 @@ export function TeleportForm() {
                 </div>
               </div>
 
+              <div className="flex items-center justify-between p-3 bg-blue-900/20 rounded-lg border border-blue-700/30">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-900/50 rounded-full flex items-center justify-center">
+                    <span className="text-lg">⛽</span>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-400">Relayer Fee</p>
+                    <p className="text-lg font-semibold text-blue-300">
+                      {parseFloat(relayerFee || "0").toFixed(6)} omMNEE
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Covers {targetChain} gas costs
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div className="pt-4 border-t border-gray-700/50">
                 <div className="bg-blue-900/20 border border-blue-700/30 rounded-lg p-3">
                   <p className="text-xs text-blue-300">
@@ -291,11 +430,14 @@ export function TeleportForm() {
         <button
           onClick={handleTeleport}
           disabled={
+            !blueTeamVerified ||
             !amount ||
             !targetChain ||
             !targetAddress ||
+            !relayerFee ||
             parseFloat(amount) <= 0 ||
-            parseFloat(amount) > parseFloat(omMneeBalance) ||
+            parseFloat(relayerFee) <= 0 ||
+            (parseFloat(amount) + parseFloat(relayerFee || "0")) > parseFloat(omMneeBalance) ||
             !validateAddress(targetChain as SupportedChain, targetAddress) ||
             teleporting
           }

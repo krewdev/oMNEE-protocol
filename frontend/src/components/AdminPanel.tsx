@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
-import { Settings, UserPlus, Loader2, CheckCircle2, Crown, Users } from "lucide-react";
+import { Settings, UserPlus, Loader2, CheckCircle2, Crown, Users, UserMinus } from "lucide-react";
 import { useWeb3 } from "../contexts/Web3Context";
 import { useContracts } from "../hooks/useContracts";
 import { useAuthorization } from "../hooks/useContracts";
@@ -16,6 +16,7 @@ export function AdminPanel() {
 
   const [agentAddress, setAgentAddress] = useState("");
   const [authorizing, setAuthorizing] = useState(false);
+  const [revoking, setRevoking] = useState<string | null>(null);
   const [authorizedAgents, setAuthorizedAgents] = useState<string[]>([]);
   const [loadingAgents, setLoadingAgents] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,14 +36,17 @@ export function AdminPanel() {
       const agentAuthEvents = events.filter(
         (e) => e.type === "AgentAuthorized"
       ) as any[];
+      const agentRevokedEvents = events.filter(
+        (e) => e.type === "AgentRevoked"
+      ) as any[];
 
-      const uniqueAgents = Array.from(
-        new Set(agentAuthEvents.map((e) => e.agent.toLowerCase()))
-      );
+      // Get all unique agents from auth events
+      const allAgents = new Set<string>();
+      agentAuthEvents.forEach((e) => allAgents.add(e.agent.toLowerCase()));
 
-      // Verify which agents are still authorized
+      // Verify which agents are still authorized (check current state on-chain)
       const verifiedAgents: string[] = [];
-      for (const agent of uniqueAgents) {
+      for (const agent of allAgents) {
         try {
           const isAuthorized = await hubContract.authorizedAgents(agent);
           if (isAuthorized) {
@@ -84,6 +88,26 @@ export function AdminPanel() {
       console.error("Authorization error:", err);
     } finally {
       setAuthorizing(false);
+    }
+  };
+
+  const handleRevokeAgent = async (agent: string) => {
+    if (!hubContract || !signer) return;
+
+    try {
+      setRevoking(agent);
+      setError(null);
+      const tx = await hubContract.revokeAgent(agent);
+      setTxHash(tx.hash);
+      await tx.wait();
+      setTxHash(null);
+      await loadAuthorizedAgents();
+      await checkAuthorization();
+    } catch (err: any) {
+      setError(err.message || "Failed to revoke agent");
+      console.error("Revocation error:", err);
+    } finally {
+      setRevoking(null);
     }
   };
 
@@ -255,14 +279,33 @@ export function AdminPanel() {
                     <p className="text-xs text-gray-400 mt-0.5">Authorized Agent</p>
                   </div>
                 </div>
-                <a
-                  href={`https://etherscan.io/address/${agent}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-xs transition-colors"
-                >
-                  View on Etherscan
-                </a>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleRevokeAgent(agent)}
+                    disabled={revoking === agent}
+                    className="px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-xs transition-colors flex items-center gap-1.5"
+                  >
+                    {revoking === agent ? (
+                      <>
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        Revoking...
+                      </>
+                    ) : (
+                      <>
+                        <UserMinus className="w-3 h-3" />
+                        Revoke
+                      </>
+                    )}
+                  </button>
+                  <a
+                    href={`https://etherscan.io/address/${agent}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-xs transition-colors"
+                  >
+                    View on Etherscan
+                  </a>
+                </div>
               </div>
             ))}
           </div>
