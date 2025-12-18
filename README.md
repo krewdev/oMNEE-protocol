@@ -1,145 +1,91 @@
-# oMNEE Protocol
+oMNEE Protocol - Universal Ledger for Agentic Economies
 
-OMNEE: The Omnichain Settlement Layer for Agentic Economies.
+🏆 MNEE Hackathon Submission — Programmable Money for Agents, Commerce, and Automated Finance
+Overview
 
-## Overview
+oMNEE is a Universal Ledger Protocol that transforms MNEE (USD-backed stablecoin at 0x8ccedbAe4916b79da7F3F612EfB2EB93A2bFD6cF) into a programmable, cross-chain derivative. It creates a high-velocity layer for AI agents to transact, tokenize real-world assets (RWA), and settle payments with instant finality.
+Architecture
 
-The OMNEE Protocol is a Universal Settlement Token system designed for AI Agents. It creates a programmable layer on top of the MNEE token, enabling Rich Transfers with metadata for RWA (Real World Asset) tokenization and cross-chain operations.
+The protocol uses a Vault-based Mint/Burn mechanism. By locking MNEE in the OmneeHub, agents receive omMNEE — a programmable wrapper that supports rich metadata and cross-chain teleportation.
+Core Components
+Contract	Purpose	Key Feature
+OmneeHub	Central Vault & Controller	Manages 1:1 MNEE collateral and authorizes AI "Vectors."
+omMNEE Token	Programmable Derivative	ERC20 with transferWithMetadata() for agent tracking.
+Settlement	Private Network Clearing	Enables sub-second finality between AI agent clusters.
+RWATokenization	Asset Backing	Tokenizes invoices and real estate using omMNEE collateral.
+CrossChainBridge	Liquidity Portability	Facilitates "teleport" operations across multiple chains.
+Technical Integration
+1. Deposit & Mint (Agent Onboarding)
 
-## Architecture
+AI agents lock MNEE to gain programmable liquidity.
+Solidity
 
-The protocol consists of two main smart contracts:
+// Approve and lock MNEE
+mneeToken.approve(hubAddress, amount);
+hub.lockAndMint(amount); // Mints 1:1 omMNEE
 
-### 1. OmneeToken.sol (omMNEE)
+2. Rich Transfers (Metadata)
 
-The Universal Settlement Token - a programmable "wrapper" token that represents locked MNEE on a 1:1 basis.
+Agents can attach "Task IDs" or "Invoice Hashes" directly to the transfer, allowing for automated accounting.
+JavaScript
 
-**Key Features:**
-- ERC20-compliant token with extended functionality
-- Metadata-enabled transfers for Agentic tracking
-- Only mintable/burnable by the OmneeHub contract
-- Enables RWA data attachment (Invoice IDs, Task hashes, etc.)
+await omMNEE.transferWithMetadata(
+  serviceProvider, 
+  amount, 
+  "TaskID: agent-sub-442"
+);
 
-**Special Functions:**
-- `transferWithMetadata()` - Transfer tokens with attached metadata for tracking
+3. RWA Tokenization
 
-### 2. OmneeHub.sol
+Convert real-world business receivables into MNEE-backed instruments.
+Solidity
 
-The "Central Bank" vault contract that manages MNEE collateral and controls omMNEE minting/burning.
+rwa.issueRWAToken(
+    owner,
+    collateralAmount,
+    AssetType.INVOICE,
+    maturityTimestamp,
+    "ipfs://invoice-data"
+);
 
-**Key Features:**
-- Manages the official MNEE token collateral (0x8ccedbAe4916b79da7F3F612EfB2EB93A2bFD6cF)
-- Authorizes AI Agent "Vectors" for operations
-- Enforces 1:1 backing of omMNEE to MNEE
-- Supports cross-chain "teleport" operations
+Installation & Setup
+1. Install Dependencies
+Bash
 
-**Core Functions:**
-- `depositAndMint()` - Lock MNEE and mint omMNEE
-- `redeem()` - Burn omMNEE and retrieve MNEE
-- `teleportFunds()` - Cross-chain transfer mechanism
-- `authorizeAgent()` - Whitelist AI Agents (owner only)
-
-## Installation
-
-```bash
+git clone https://github.com/krewdev/oMNEE-protocol.git
+cd oMNEE-protocol
 npm install
-```
 
-## Compilation
+2. Compilation
+Bash
 
-The contracts use Solidity 0.8.20 and OpenZeppelin contracts v5.x.
-
-```bash
 npx hardhat compile
-```
 
-Note: If you encounter network issues with the Hardhat compiler downloader, you can verify the contracts compile correctly using the local solc compiler:
+3. Deployment
 
-```bash
-npm install --save-dev solc@0.8.20
-```
+The script deploys the Hub (the "Central Bank") and initializes the derivative ecosystem.
+Bash
 
-## Deployment
+npx hardhat run scripts/deploy.js --network sepolia
 
-Deploy the OMNEE Hub (which automatically deploys the omMNEE token):
+Security & Roles
 
-```bash
-npx hardhat run scripts/deploy.js --network <network-name>
-```
+    AccessControl: Modular roles (MINTER_ROLE, AGENT_ROLE, BRIDGE_OPERATOR_ROLE) ensure that only verified AI vectors can trigger minting/burning.
 
-The deployment script will output:
-- OmneeHub contract address
-- omMNEE Token contract address
+    1:1 Backing: The OmneeHub is non-custodial and maintains a strict 1:1 ratio between locked MNEE and circulating omMNEE.
 
-## Usage Flow
+    Emergency Pause: All critical functions include a circuit breaker for protocol safety.
 
-### For Users/Agents:
+Hackathon Track Summary
 
-1. **Get Authorized** - The Hub owner must authorize your address as an Agent Vector
-   
-2. **Deposit & Mint**
-   ```solidity
-   // Approve MNEE spending first
-   mneeToken.approve(hubAddress, amount);
-   
-   // Deposit MNEE and mint omMNEE
-   hub.depositAndMint(amount, "Purpose: RWA Collateral");
-   ```
+    ✅ AI & Agent Payments: Native metadata support for autonomous service payments.
 
-3. **Transfer with Metadata**
-   ```solidity
-   omMNEE.transferWithMetadata(recipient, amount, "Invoice #992");
-   ```
+    ✅ Financial Automation: Automated RWA issuance and maturity-based redemption.
 
-4. **Redeem**
-   ```solidity
-   hub.redeem(amount); // Burns omMNEE, returns MNEE
-   ```
+    ✅ Commerce Tools: Instant settlement layer for sub-second agent-to-agent trade.
 
-5. **Cross-Chain Teleport**
-   ```solidity
-   hub.teleportFunds(amount, "Solana", "target-address");
-   ```
+MNEE Contract: 0x8ccedbAe4916b79da7F3F612EfB2EB93A2bFD6cF
 
-## Smart Contract Addresses
+License: MIT
 
-- **MNEE Token**: `0x8ccedbAe4916b79da7F3F612EfB2EB93A2bFD6cF`
-- **OmneeHub**: (Deploy and add address here)
-- **omMNEE Token**: (Automatically deployed by Hub)
-
-## Events
-
-The contracts emit events for off-chain Agent Listeners to track:
-
-- `CollateralLocked(agent, amount, purpose)` - When MNEE is deposited
-- `RedemptionRequested(agent, amount, destination)` - When omMNEE is redeemed
-- `OmniTransfer(from, to, value, metadata)` - When metadata transfers occur
-- `AgentAuthorized(agent)` - When new agents are whitelisted
-
-## Development
-
-### Project Structure
-```
-├── contracts/
-│   ├── OmneeToken.sol      # The omMNEE ERC20 token
-│   └── OmneeHub.sol        # The vault/hub contract
-├── scripts/
-│   └── deploy.js           # Deployment script
-├── hardhat.config.ts       # Hardhat configuration
-└── package.json            # Dependencies
-```
-
-### Testing
-
-While compilation has been verified, you can add tests in the `test/` directory following Hardhat's testing conventions.
-
-## Security Considerations
-
-- Only authorized agents can perform deposits, redemptions, and teleports
-- The Hub maintains ownership of the omMNEE token contract
-- MNEE collateral is held in the Hub contract, maintaining 1:1 backing
-- Cross-chain operations emit events but require an off-chain Agent Listener to execute
-
-## License
-
-MIT License - See LICENSE file for details.
+Would you like me to generate a Demo Script that simulates a full AI Agent workflow (Lock -> Pay for API -> Tokenize Invoice -> Redeem)?
