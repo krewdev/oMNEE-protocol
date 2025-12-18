@@ -1,0 +1,23 @@
+{
+  "name": "OMNEE Protocol",
+  "jobTitle": "Universal Settlement Layer for AI Agents",
+  "location": "Ethereum Mainnet",
+  "availability": {
+    "status": "Online",
+    "nextOpenSlot": "Always available"
+  },
+  "knowsAbout": [
+    "Cross-chain operations",
+    "Bot detection and prevention",
+    "Agent authorization",
+    "MNEE token management",
+    "Omnichain settlement",
+    "RWA tokenization"
+  ],
+  "contact": {
+    "email": "info@omnee.protocol",
+    "github": "https://github.com/krewdev/oMNEE-protocol"
+  }
+}
+
+
