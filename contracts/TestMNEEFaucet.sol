@@ -5,21 +5,19 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
- * @title MNEEFaucet
- * @dev A faucet contract for distributing MNEE tokens for testing purposes.
- * The contract holds MNEE tokens and allows users to request tokens with cooldown protection.
+ * @title TestMNEEFaucet
+ * @dev A test faucet contract with configurable cooldown for development/testing.
+ * This version allows the owner to set a shorter cooldown period for testing purposes.
  */
-contract MNEEFaucet is Ownable {
-    // The official MNEE token contract address
+contract TestMNEEFaucet is Ownable {
+    // The token contract address
     IERC20 public immutable mneeToken;
-    // Default to mainnet MNEE address, but allow override in constructor for testing
-    address constant DEFAULT_MNEE_ADDRESS = 0x8ccedbAe4916b79da7F3F612EfB2EB93A2bFD6cF;
     
     // Maximum amount that can be requested per faucet call
-    uint256 public constant MAX_FAUCET_AMOUNT = 10000 * 10**18; // 10,000 MNEE tokens
+    uint256 public constant MAX_FAUCET_AMOUNT = 10000 * 10**18; // 10,000 tokens
     
-    // Cooldown period between faucet requests (in seconds)
-    uint256 public constant FAUCET_COOLDOWN = 3600; // 1 hour
+    // Cooldown period between faucet requests (in seconds) - configurable for testing
+    uint256 public faucetCooldown;
     
     // Mapping to track last faucet request time per address
     mapping(address => uint256) public lastFaucetRequest;
@@ -28,16 +26,22 @@ contract MNEEFaucet is Ownable {
     event FaucetRequest(address indexed to, uint256 amount);
     event FaucetFunded(address indexed funder, uint256 amount);
     event FaucetWithdrawn(address indexed to, uint256 amount);
+    event CooldownUpdated(uint256 newCooldown);
 
-    constructor(address _mneeTokenAddress) Ownable(msg.sender) {
-        require(_mneeTokenAddress != address(0), "MNEEFaucet: Invalid token address");
+    constructor(address _mneeTokenAddress, uint256 _initialCooldown) Ownable(msg.sender) {
+        require(_mneeTokenAddress != address(0), "TestMNEEFaucet: Invalid token address");
         mneeToken = IERC20(_mneeTokenAddress);
+        faucetCooldown = _initialCooldown;
     }
-    
-    // Convenience constructor for mainnet deployment (uses default MNEE address)
-    // Note: Solidity doesn't support default parameters, so we use a separate function
-    // For mainnet: deploy with DEFAULT_MNEE_ADDRESS
-    // For testing: deploy with TestMNEE address
+
+    /**
+     * @dev Set the cooldown period (owner only, for testing)
+     * @param _newCooldown The new cooldown period in seconds
+     */
+    function setCooldown(uint256 _newCooldown) external onlyOwner {
+        faucetCooldown = _newCooldown;
+        emit CooldownUpdated(_newCooldown);
+    }
 
     /**
      * @dev Faucet function to request test tokens.
@@ -45,19 +49,19 @@ contract MNEEFaucet is Ownable {
      */
     function faucet() external {
         require(
-            block.timestamp >= lastFaucetRequest[msg.sender] + FAUCET_COOLDOWN,
-            "MNEEFaucet: Faucet cooldown not expired"
+            block.timestamp >= lastFaucetRequest[msg.sender] + faucetCooldown,
+            "TestMNEEFaucet: Faucet cooldown not expired"
         );
         
         require(
             mneeToken.balanceOf(address(this)) >= MAX_FAUCET_AMOUNT,
-            "MNEEFaucet: Insufficient tokens in faucet"
+            "TestMNEEFaucet: Insufficient tokens in faucet"
         );
         
         lastFaucetRequest[msg.sender] = block.timestamp;
         
         bool success = mneeToken.transfer(msg.sender, MAX_FAUCET_AMOUNT);
-        require(success, "MNEEFaucet: Token transfer failed");
+        require(success, "TestMNEEFaucet: Token transfer failed");
         
         emit FaucetRequest(msg.sender, MAX_FAUCET_AMOUNT);
     }
@@ -70,7 +74,7 @@ contract MNEEFaucet is Ownable {
      */
     function canRequestFaucet(address user) external view returns (bool canRequest, uint256 timeUntilNextRequest) {
         uint256 lastRequest = lastFaucetRequest[user];
-        uint256 nextRequestTime = lastRequest + FAUCET_COOLDOWN;
+        uint256 nextRequestTime = lastRequest + faucetCooldown;
         uint256 faucetBalance = mneeToken.balanceOf(address(this));
         
         if (block.timestamp >= nextRequestTime && faucetBalance >= MAX_FAUCET_AMOUNT) {
@@ -87,43 +91,41 @@ contract MNEEFaucet is Ownable {
     }
 
     /**
-     * @dev Fund the faucet with MNEE tokens.
-     * Anyone can fund the faucet, but typically the owner will do this.
-     * @param amount The amount of MNEE tokens to fund (must approve this contract first).
+     * @dev Fund the faucet with tokens.
+     * @param amount The amount of tokens to fund (must approve this contract first).
      */
     function fundFaucet(uint256 amount) external {
-        require(amount > 0, "MNEEFaucet: Amount must be > 0");
+        require(amount > 0, "TestMNEEFaucet: Amount must be > 0");
         
         bool success = mneeToken.transferFrom(msg.sender, address(this), amount);
-        require(success, "MNEEFaucet: Token transfer failed");
+        require(success, "TestMNEEFaucet: Token transfer failed");
         
         emit FaucetFunded(msg.sender, amount);
     }
 
     /**
      * @dev Withdraw tokens from the faucet (owner only).
-     * @param amount The amount of MNEE tokens to withdraw.
+     * @param amount The amount of tokens to withdraw.
      */
     function withdraw(uint256 amount) external onlyOwner {
-        require(amount > 0, "MNEEFaucet: Amount must be > 0");
+        require(amount > 0, "TestMNEEFaucet: Amount must be > 0");
         require(
             mneeToken.balanceOf(address(this)) >= amount,
-            "MNEEFaucet: Insufficient balance"
+            "TestMNEEFaucet: Insufficient balance"
         );
         
         bool success = mneeToken.transfer(owner(), amount);
-        require(success, "MNEEFaucet: Token transfer failed");
+        require(success, "TestMNEEFaucet: Token transfer failed");
         
         emit FaucetWithdrawn(owner(), amount);
     }
 
     /**
      * @dev Get the current balance of the faucet.
-     * @return The current balance of MNEE tokens in the faucet.
+     * @return The current balance of tokens in the faucet.
      */
     function getFaucetBalance() external view returns (uint256) {
         return mneeToken.balanceOf(address(this));
     }
 }
-
 

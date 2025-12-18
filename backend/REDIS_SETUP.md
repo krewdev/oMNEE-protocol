@@ -341,3 +341,4 @@ If you're upgrading from in-memory storage:
 ---
 
 **Redis persistence ensures your bot trap security state survives server restarts and enables horizontal scaling.**
+

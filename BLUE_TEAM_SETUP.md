@@ -174,3 +174,4 @@ await new Promise((resolve) => setTimeout(resolve, 600)); // Change delay here
 - The speed trap threshold (0.5s) can be adjusted based on your needs
 - Consider rate limiting on your backend for additional protection
 - Monitor the `/stats/trapped` endpoint to track bot activity
+

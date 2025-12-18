@@ -226,3 +226,4 @@ origin: ["http://localhost:3000", "https://your-domain.com"]
 5. ✅ Monitor `/stats/trapped` for bot activity
 
 The bot trap is now fully integrated and ready to catch unauthorized bots! 🕷️🪤
+

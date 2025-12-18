@@ -267,3 +267,4 @@ Monitor Blue Team stats at `/stats/trapped`:
    - Check agent history before teleport
    - Validate destination chain addresses
    - Require additional signatures for large amounts
+

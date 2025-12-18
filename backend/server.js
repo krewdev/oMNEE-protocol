@@ -24,8 +24,10 @@ const MAZE_RATE_LIMIT_WINDOW = 1; // 1 second window
 
 // --- MIDDLEWARE ---
 app.use(cors({
-  origin: ["http://localhost:3000", "http://localhost:5173", "http://localhost:3006"],
-  credentials: true
+  origin: ["http://localhost:3000", "http://localhost:3001", "http://localhost:5173", "http://localhost:3006"],
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Agent-Auth", "X-Wallet-Address", "X-Session-Token"]
 }));
 app.use(express.json());
 
@@ -449,3 +451,4 @@ app.listen(PORT, () => {
   console.log(`   POST /api/email-wallet/export-key - Export private key`);
   console.log(`   POST /api/email-wallet/recover - Initiate recovery\n`);
 });
+

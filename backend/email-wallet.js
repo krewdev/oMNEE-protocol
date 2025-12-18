@@ -351,3 +351,4 @@ function decryptPrivateKey(encryptedData, password) {
 }
 
 export default router;
+

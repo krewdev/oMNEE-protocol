@@ -271,3 +271,4 @@ PORT=8001 npm start
 - Check speed trap threshold (default 0.5s)
 - Verify middleware is running
 - Check request timing in logs
+

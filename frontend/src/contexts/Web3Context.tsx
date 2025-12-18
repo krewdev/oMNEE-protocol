@@ -60,16 +60,24 @@ export function Web3Provider({ children }: Web3ProviderProps) {
       // Request account access
       await window.ethereum.request({ method: "eth_requestAccounts" });
 
-      // Create provider
-      const browserProvider = new ethers.BrowserProvider(window.ethereum as ethers.Eip1193Provider);
+      // Create provider with ENS disabled to avoid resolution errors
+      const browserProvider = new ethers.BrowserProvider(window.ethereum as ethers.Eip1193Provider, undefined, {
+        staticNetwork: true, // Disable ENS resolution
+      });
       setProvider(browserProvider);
 
       // Get signer
       const browserSigner = await browserProvider.getSigner();
       setSigner(browserSigner);
 
-      // Get address
+      // Get address directly (no ENS resolution)
       const userAddress = await browserSigner.getAddress();
+      
+      // Validate address
+      if (!ethers.isAddress(userAddress)) {
+        throw new Error("Invalid address received from wallet");
+      }
+      
       setAddress(userAddress);
 
       // Get chain ID
@@ -84,9 +92,15 @@ export function Web3Provider({ children }: Web3ProviderProps) {
         window.ethereum.on("accountsChanged", handleAccountsChanged);
         window.ethereum.on("chainChanged", handleChainChanged);
       }
-    } catch (error) {
+    } catch (error: any) {
+      // Provide user-friendly error messages
+      const errorMessage = error?.message || error?.toString() || "Unknown error";
+      if (errorMessage.includes("User rejected") || errorMessage.includes("user rejected")) {
+        // User cancelled - don't show error
+        return;
+      }
       console.error("Error connecting wallet:", error);
-      alert("Failed to connect wallet. Please try again.");
+      alert(`Failed to connect wallet: ${errorMessage}. Please make sure MetaMask is installed and unlocked.`);
     }
   };
 
@@ -96,15 +110,17 @@ export function Web3Provider({ children }: Web3ProviderProps) {
       // Use provided RPC URL or default to Ethereum mainnet
       const rpcEndpoint = rpcUrl || import.meta.env.VITE_RPC_URL || "https://eth.llamarpc.com";
       
-      // Create JSON-RPC provider
-      const jsonRpcProvider = new ethers.JsonRpcProvider(rpcEndpoint);
+      // Create JSON-RPC provider with ENS disabled to avoid resolution errors
+      const jsonRpcProvider = new ethers.JsonRpcProvider(rpcEndpoint, undefined, {
+        staticNetwork: true, // Disable ENS resolution
+      });
       setProvider(jsonRpcProvider as any); // Type assertion for compatibility
 
       // Create wallet from private key
       const wallet = new ethers.Wallet(privateKey, jsonRpcProvider);
       setSigner(wallet as any); // Type assertion for compatibility
 
-      // Get address
+      // Get address directly from wallet (no ENS resolution)
       const walletAddress = wallet.address;
       setAddress(walletAddress);
 
@@ -179,29 +195,39 @@ export function Web3Provider({ children }: Web3ProviderProps) {
           });
 
           if (accounts.length > 0) {
-            const browserProvider = new ethers.BrowserProvider(window.ethereum as ethers.Eip1193Provider);
-            setProvider(browserProvider);
+            try {
+              const browserProvider = new ethers.BrowserProvider(window.ethereum as ethers.Eip1193Provider, undefined, {
+                staticNetwork: true, // Disable ENS resolution
+              });
+              setProvider(browserProvider);
 
-            const browserSigner = await browserProvider.getSigner();
-            setSigner(browserSigner);
+              const browserSigner = await browserProvider.getSigner();
+              setSigner(browserSigner);
 
-            const userAddress = await browserSigner.getAddress();
-            setAddress(userAddress);
+              const userAddress = await browserSigner.getAddress();
+              
+              // Validate address
+              if (ethers.isAddress(userAddress) && !userAddress.includes("...")) {
+                setAddress(userAddress);
+                const network = await browserProvider.getNetwork();
+                setChainId(Number(network.chainId));
+                setIsConnected(true);
+                setConnectionType('metamask');
 
-            const network = await browserProvider.getNetwork();
-            setChainId(Number(network.chainId));
-
-            setIsConnected(true);
-            setConnectionType('metamask');
-
-            // Set up listeners
-            if (window.ethereum) {
-              window.ethereum.on("accountsChanged", handleAccountsChanged);
-              window.ethereum.on("chainChanged", handleChainChanged);
+                // Set up listeners
+                if (window.ethereum) {
+                  window.ethereum.on("accountsChanged", handleAccountsChanged);
+                  window.ethereum.on("chainChanged", handleChainChanged);
+                }
+              }
+            } catch (providerError) {
+              // Silently handle provider errors - user may not have MetaMask properly configured
+              console.debug("Could not auto-connect to MetaMask:", providerError);
             }
           }
         } catch (error) {
-          console.error("Error auto-connecting wallet:", error);
+          // Silently handle auto-connect errors - this is expected if MetaMask isn't available
+          console.debug("Error auto-connecting wallet:", error);
         }
       }
     };

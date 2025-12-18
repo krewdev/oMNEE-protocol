@@ -272,3 +272,4 @@ class RedisStore {
 
 // Export singleton instance
 export default new RedisStore();
+

@@ -2,6 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { ReactNode } from "react";
 import { WalletConnect } from "./WalletConnect";
 import { QuipoLogo } from "./QuipoLogo";
+import { useWeb3 } from "../contexts/Web3Context";
 
 interface LayoutProps {
   children: ReactNode;
@@ -9,6 +10,13 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const location = useLocation();
+  const { isConnected, address } = useWeb3();
+
+  // Check if a wallet was created via WalletCreator (not just connected)
+  const walletCreated = localStorage.getItem('wallet_created') === 'true';
+  const createdWalletAddress = localStorage.getItem('created_wallet_address');
+  const isCreatedWalletConnected = walletCreated && isConnected && address && 
+    createdWalletAddress?.toLowerCase() === address.toLowerCase();
 
   const navLinks = [
     { path: "/", label: "Dashboard" },
@@ -17,7 +25,7 @@ export function Layout({ children }: LayoutProps) {
     { path: "/transfer", label: "Transfer" },
     { path: "/teleport", label: "Teleport" },
     { path: "/faucet", label: "Faucet" },
-    { path: "/create-wallet", label: "Create Wallet" },
+    { path: "/create-wallet", label: isCreatedWalletConnected ? "View Wallet" : "Create Wallet" },
     { path: "/email-wallet", label: "Email Wallet" },
     { path: "/history", label: "History" },
     { path: "/admin", label: "Admin" },

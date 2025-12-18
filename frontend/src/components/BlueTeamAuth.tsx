@@ -218,3 +218,4 @@ export function BlueTeamAuth({ onVerified, onError, apiUrl }: BlueTeamAuthProps)
     </div>
   );
 }
+

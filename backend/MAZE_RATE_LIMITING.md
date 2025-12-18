@@ -376,3 +376,4 @@ Set up alerts for:
 ---
 
 **Rate limiting ensures the maze trap remains effective while protecting server resources from DOS attacks.**
+

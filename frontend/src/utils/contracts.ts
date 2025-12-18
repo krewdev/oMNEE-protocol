@@ -20,6 +20,7 @@ const HUB_ABI = [
   "function redeem(uint256 amount)",
   "function teleportFunds(uint256 amount, string calldata targetChain, string calldata targetAddress, uint256 relayerFee)",
   "function authorizeAgent(address _agent)",
+  "function revokeAgent(address _agent)",
   "function authorizedAgents(address) view returns (bool)",
   "function owner() view returns (address)",
   "function omneeToken() view returns (address)",
@@ -30,6 +31,7 @@ const HUB_ABI = [
   "event CollateralLocked(address indexed agent, uint256 amount, string purpose)",
   "event RedemptionRequested(address indexed agent, uint256 amount, string destination, uint256 relayerFee)",
   "event AgentAuthorized(address indexed agent)",
+  "event AgentRevoked(address indexed agent)",
   "event RelayerFeeClaimed(address indexed relayer, uint256 amount)",
 ];
 
@@ -42,19 +44,45 @@ const OM_TOKEN_ABI = [
 
 export function getHubContract(
   providerOrSigner: ethers.Provider | ethers.Signer
-): ethers.Contract {
+): ethers.Contract | null {
+  // Check for empty, zero address, or formatted addresses
+  if (!HUB_ADDRESS || 
+      HUB_ADDRESS === "" || 
+      HUB_ADDRESS.includes("...") ||
+      HUB_ADDRESS === "0x0000000000000000000000000000000000000000" ||
+      !ethers.isAddress(HUB_ADDRESS)) {
+    // Silently return null - don't log warnings for missing config
+    return null;
+  }
   return new ethers.Contract(HUB_ADDRESS, HUB_ABI, providerOrSigner);
 }
 
 export function getOmTokenContract(
   providerOrSigner: ethers.Provider | ethers.Signer
-): ethers.Contract {
+): ethers.Contract | null {
+  // Check for empty, zero address, or formatted addresses
+  if (!OM_TOKEN_ADDRESS || 
+      OM_TOKEN_ADDRESS === "" || 
+      OM_TOKEN_ADDRESS.includes("...") ||
+      OM_TOKEN_ADDRESS === "0x0000000000000000000000000000000000000000" ||
+      !ethers.isAddress(OM_TOKEN_ADDRESS)) {
+    // Silently return null - don't log warnings for missing config
+    return null;
+  }
   return new ethers.Contract(OM_TOKEN_ADDRESS, OM_TOKEN_ABI, providerOrSigner);
 }
 
 export function getMneeContract(
   providerOrSigner: ethers.Provider | ethers.Signer
-): ethers.Contract {
+): ethers.Contract | null {
+  // Check for empty or formatted addresses
+  if (!MNEE_ADDRESS || 
+      MNEE_ADDRESS === "" || 
+      MNEE_ADDRESS.includes("...") ||
+      !ethers.isAddress(MNEE_ADDRESS)) {
+    // Silently return null - don't log warnings for missing config
+    return null;
+  }
   return new ethers.Contract(MNEE_ADDRESS, ERC20_ABI, providerOrSigner);
 }
 

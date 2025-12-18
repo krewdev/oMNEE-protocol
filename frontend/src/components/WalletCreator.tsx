@@ -99,6 +99,10 @@ export function WalletCreator() {
 
       setCreatedWallet(walletData);
       
+      // Mark that a wallet was created
+      localStorage.setItem('wallet_created', 'true');
+      localStorage.setItem('created_wallet_address', walletData.address);
+      
       // Automatically connect the wallet
       try {
         setConnecting(true);
@@ -501,3 +505,4 @@ STORE IT IN A SECURE LOCATION!`;
     </div>
   );
 }
+

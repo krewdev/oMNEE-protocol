@@ -29,6 +29,7 @@ contract QuipoHub is Ownable {
     event CollateralLocked(address indexed agent, uint256 amount, string purpose);
     event RedemptionRequested(address indexed agent, uint256 amount, string destination, uint256 relayerFee);
     event AgentAuthorized(address indexed agent);
+    event AgentRevoked(address indexed agent);
     event RelayerFeeClaimed(address indexed relayer, uint256 amount);
 
     constructor() Ownable(msg.sender) {
@@ -53,6 +54,12 @@ contract QuipoHub is Ownable {
     function authorizeAgent(address _agent) external onlyOwner {
         authorizedAgents[_agent] = true;
         emit AgentAuthorized(_agent);
+    }
+
+    function revokeAgent(address _agent) external onlyOwner {
+        require(authorizedAgents[_agent], "QUIPO: Agent is not authorized");
+        authorizedAgents[_agent] = false;
+        emit AgentRevoked(_agent);
     }
 
     function setRelayerAddress(address _relayer) external onlyOwner {

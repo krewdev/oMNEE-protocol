@@ -401,3 +401,4 @@ RESEND_API_KEY=your_key
 ---
 
 **This system provides enterprise-grade security with user-friendly email-based wallet management.**
+

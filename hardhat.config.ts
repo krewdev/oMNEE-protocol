@@ -1,6 +1,8 @@
 import { defineConfig } from "hardhat/config";
-import "@nomicfoundation/hardhat-ethers";
 import * as path from "path";
+
+// Import the ethers plugin - must be imported as a side effect
+import "@nomicfoundation/hardhat-ethers";
 
 export default defineConfig({
   solidity: {
@@ -18,4 +20,9 @@ export default defineConfig({
     cache: "./cache",
     artifacts: "./artifacts"
   },
+  networks: {
+    localhost: {
+      url: "http://127.0.0.1:8545"
+    }
+  }
 });

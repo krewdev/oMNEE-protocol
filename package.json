@@ -9,7 +9,12 @@
     "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
     "start:backend": "cd backend && npm start",
     "start:frontend": "cd frontend && npm run dev",
-    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install"
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "test": "hardhat test",
+    "test:auth": "hardhat test test/Authorization.test.js",
+    "test:manual": "hardhat run scripts/test-auth.js --network localhost",
+    "node": "hardhat node",
+    "compile": "hardhat compile"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-ethers": "^4.0.3",

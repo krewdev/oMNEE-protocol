@@ -22,9 +22,13 @@ export function useContracts() {
     const mnee = getMneeContract(provider);
 
     if (signer) {
-      setHubContract(getHubContract(signer));
-      setOmTokenContract(getOmTokenContract(signer));
-      setMneeContract(getMneeContract(signer));
+      const hubWithSigner = getHubContract(signer);
+      const omTokenWithSigner = getOmTokenContract(signer);
+      const mneeWithSigner = getMneeContract(signer);
+      
+      setHubContract(hubWithSigner);
+      setOmTokenContract(omTokenWithSigner);
+      setMneeContract(mneeWithSigner);
     } else {
       setHubContract(hub);
       setOmTokenContract(omToken);
@@ -50,16 +54,40 @@ export function useBalances() {
       return;
     }
 
+    // Validate address before using - check for formatted addresses with "..."
+    if (!address || address.includes("...") || !ethers.isAddress(address)) {
+      console.warn("Invalid address for balance check:", address);
+      setMneeBalance("0");
+      setOmMneeBalance("0");
+      setLoading(false);
+      return;
+    }
+
+    // Normalize address to checksummed format
+    let validAddress: string;
+    try {
+      validAddress = ethers.getAddress(address);
+    } catch (err) {
+      console.warn("Failed to normalize address:", address);
+      setMneeBalance("0");
+      setOmMneeBalance("0");
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const [mnee, omMnee] = await Promise.all([
-        mneeContract.balanceOf(address),
-        omTokenContract.balanceOf(address),
+        mneeContract.balanceOf(validAddress),
+        omTokenContract.balanceOf(validAddress),
       ]);
       setMneeBalance(ethers.formatEther(mnee));
       setOmMneeBalance(ethers.formatEther(omMnee));
     } catch (error) {
-      console.error("Error fetching balances:", error);
+      // Only log if it's not an ENS error
+      if (!(error as Error).message?.includes("ENS name") && !(error as Error).message?.includes("Invalid label")) {
+        console.error("Error fetching balances:", error);
+      }
     } finally {
       setLoading(false);
     }
@@ -92,16 +120,40 @@ export function useAuthorization() {
       return;
     }
 
+    // Validate address before using - check for formatted addresses with "..."
+    if (!address || address.includes("...") || !ethers.isAddress(address)) {
+      console.warn("Invalid address for authorization check:", address);
+      setIsAuthorized(false);
+      setIsOwner(false);
+      setLoading(false);
+      return;
+    }
+
+    // Normalize address to checksummed format
+    let validAddress: string;
+    try {
+      validAddress = ethers.getAddress(address);
+    } catch (err) {
+      console.warn("Failed to normalize address:", address);
+      setIsAuthorized(false);
+      setIsOwner(false);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const [authorized, owner] = await Promise.all([
-        hubContract.authorizedAgents(address),
+        hubContract.authorizedAgents(validAddress),
         hubContract.owner(),
       ]);
       setIsAuthorized(authorized);
-      setIsOwner(owner.toLowerCase() === address.toLowerCase());
+      setIsOwner(owner.toLowerCase() === validAddress.toLowerCase());
     } catch (error) {
-      console.error("Error checking authorization:", error);
+      // Only log if it's not an ENS error
+      if (!(error as Error).message?.includes("ENS name") && !(error as Error).message?.includes("Invalid label")) {
+        console.error("Error checking authorization:", error);
+      }
       setIsAuthorized(false);
       setIsOwner(false);
     } finally {
@@ -130,6 +182,19 @@ export function useProtocolStats() {
 
   const refreshStats = useCallback(async () => {
     if (!provider || !mneeContract || !omTokenContract || !HUB_ADDRESS) {
+      setTotalMneeLocked("0");
+      setTotalOmMneeSupply("0");
+      setLoading(false);
+      return;
+    }
+
+    // Validate HUB_ADDRESS before using
+    if (!HUB_ADDRESS || 
+        HUB_ADDRESS === "" || 
+        HUB_ADDRESS.includes("...") ||
+        HUB_ADDRESS === "0x0000000000000000000000000000000000000000" ||
+        !ethers.isAddress(HUB_ADDRESS)) {
+      // Silently skip - don't log warnings for missing config
       setTotalMneeLocked("0");
       setTotalOmMneeSupply("0");
       setLoading(false);

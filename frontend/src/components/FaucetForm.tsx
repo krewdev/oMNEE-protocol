@@ -40,6 +40,17 @@ export function FaucetForm() {
       return;
     }
 
+    // Validate FAUCET_ADDRESS before creating contract
+    if (!FAUCET_ADDRESS || 
+        FAUCET_ADDRESS === "" || 
+        FAUCET_ADDRESS.includes("...") ||
+        !ethers.isAddress(FAUCET_ADDRESS)) {
+      // Silently skip - don't log warnings for missing config
+      setLoading(false);
+      setFaucetContract(null);
+      return;
+    }
+
     try {
       const contract = signer 
         ? new ethers.Contract(FAUCET_ADDRESS, FAUCET_ABI, signer)
@@ -100,12 +111,33 @@ export function FaucetForm() {
       return;
     }
 
+    // Validate address before using - check for formatted addresses with "..."
+    if (!address || address.includes("...") || !ethers.isAddress(address)) {
+      setCanRequest(false);
+      setTimeUntilNext(0);
+      return;
+    }
+
+    // Ensure address is checksummed and valid
+    let validAddress: string;
     try {
-      const [canReq, timeUntil] = await faucetContract.canRequestFaucet(address);
+      validAddress = ethers.getAddress(address); // Normalizes and checksums
+    } catch (err) {
+      console.warn("Invalid address format:", address);
+      setCanRequest(false);
+      setTimeUntilNext(0);
+      return;
+    }
+
+    try {
+      const [canReq, timeUntil] = await faucetContract.canRequestFaucet(validAddress);
       setCanRequest(canReq);
       setTimeUntilNext(Number(timeUntil));
     } catch (err: any) {
-      console.error("Error checking faucet status:", err);
+      // Only log if it's not an ENS error (which we're trying to prevent)
+      if (!err.message?.includes("ENS name") && !err.message?.includes("Invalid label")) {
+        console.error("Error checking faucet status:", err);
+      }
       // Don't show error for status checks, just set defaults
       setCanRequest(false);
       setTimeUntilNext(0);
